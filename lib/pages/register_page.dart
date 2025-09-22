@@ -2,6 +2,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:songduan_app/pages/add_profile_member_page.dart';
+import 'package:songduan_app/pages/add_profile_rider_page.dart';
 import 'package:songduan_app/pages/login_page.dart';
 
 import 'package:songduan_app/widgets/gradient_button.dart';
@@ -149,10 +151,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
               ),
               const Spacer(),
-              SizedBox(
-                height: 56,
-                child: GradientButton(text: 'ถัดไป', onTap: _onNext),
-              ),
+              GradientButton(text: 'ถัดไป', onTap: _onNext),
               const SizedBox(height: 64),
               Center(
                 child: Text.rich(
@@ -188,16 +187,13 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void _onNext() {
-    // TODO: validate + API + ไปหน้าถัดไปตาม flow
-    // ตัวอย่าง: Get.to(() => const VerifyOtpPage());
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'สมัครแบบ ${_role == RegisterRole.member ? 'Member' : 'Rider'}',
-          style: GoogleFonts.nunitoSans(),
-        ),
-      ),
-    );
+    if (_role == RegisterRole.rider) {
+      // ไปหน้า Fill Your Profile (Rider)
+      Get.to(() => const RiderProfilePage());
+    } else {
+      // ถ้าเป็น Member → ทำ flow อื่น เช่น กลับหน้า Home หรือ Verify OTP
+      Get.to(() => const MemberProfilePage());
+    }
   }
 }
 
