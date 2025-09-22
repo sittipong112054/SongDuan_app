@@ -1,6 +1,7 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import 'package:songduan_app/pages/welcome_page.dart';
 
 class SplashPage extends StatefulWidget {
@@ -11,26 +12,17 @@ class SplashPage extends StatefulWidget {
 }
 
 class _SplashPageState extends State<SplashPage> {
-  static const _orange = Color(0xFFFF7A00); // ส้มหลัก
+  static const _orange = Color(0xFFEA4335);
+  static const _gold = Color(0xFFFF9C00);
 
   @override
   void initState() {
     super.initState();
-
-    // รอ 3 วิแล้วเปลี่ยนด้วย Fade Transition
-    Timer(const Duration(seconds: 3), () {
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              const WelcomePage(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            // ใช้ FadeTransition
-            return FadeTransition(opacity: animation, child: child);
-          },
-          transitionDuration: const Duration(
-            milliseconds: 1500,
-          ), // เวลา fade 0.8 วิ
-        ),
+    Future.delayed(const Duration(seconds: 2), () {
+      Get.off(
+        () => const WelcomePage(),
+        transition: Transition.circularReveal,
+        duration: const Duration(milliseconds: 1000),
       );
     });
   }
@@ -38,15 +30,13 @@ class _SplashPageState extends State<SplashPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // พื้นหลังขาวเหมือนในภาพ
+      backgroundColor: Colors.white,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // โลโก้
             Container(
-              width: 140,
-              height: 140,
+              width: 180,
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
@@ -62,47 +52,30 @@ class _SplashPageState extends State<SplashPage> {
               child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
             ),
             const SizedBox(height: 20),
-
-            // ชื่อแอป
             Stack(
               children: [
-                // Stroke (ขอบตัวอักษร)
                 Text(
                   'SONGDUAN EXPRESS',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.staatliches(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 42,
+                    fontWeight: FontWeight.bold,
                     letterSpacing: 1.2,
                     foreground: Paint()
                       ..style = PaintingStyle.stroke
-                      ..strokeWidth =
-                          3 // ความหนาเส้นขอบ
-                      ..color = const Color.fromARGB(
-                        255,
-                        255,
-                        63,
-                        0,
-                      ), // สีขอบส้ม
-                    shadows: [
-                      Shadow(
-                        color: _orange.withOpacity(0.6),
-                        // color: Colors.black.withOpacity(0.2),
-                        offset: const Offset(0, 8),
-                        blurRadius: 6,
-                      ),
-                    ],
+                      ..strokeWidth = 3
+                      ..color = _orange,
+                    shadows: [Shadow(color: _gold, offset: const Offset(6, 0))],
                   ),
                 ),
-                // Fill (ตัวอักษรด้านใน)
                 Text(
                   'SONGDUAN EXPRESS',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.staatliches(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 42,
+                    fontWeight: FontWeight.normal,
                     letterSpacing: 1.2,
-                    color: Colors.white, // สีด้านใน (ตามฟิกม่าคือ #F3F4FD)
+                    color: Colors.white,
                     shadows: [
                       Shadow(
                         color: Colors.black.withOpacity(0.2),
@@ -114,15 +87,11 @@ class _SplashPageState extends State<SplashPage> {
                 ),
               ],
             ),
-
-            const SizedBox(height: 6),
-
-            // สโลแกน
-            const Text(
+            Text(
               'เรียลไทม์ ส่งไว ถึงชัวร์',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.black54,
+              style: GoogleFonts.notoSansThai(
+                color: Color(0xFF8C8C8C).withOpacity(0.65),
+                fontSize: 20,
                 fontWeight: FontWeight.w600,
               ),
             ),

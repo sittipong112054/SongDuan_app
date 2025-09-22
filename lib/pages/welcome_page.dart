@@ -1,7 +1,10 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:songduan_app/pages/login_page.dart';
+import 'package:songduan_app/pages/register_page.dart';
+import 'package:songduan_app/widgets/gradient_button.dart';
 
 class WelcomePage extends StatefulWidget {
   const WelcomePage({super.key});
@@ -11,26 +14,22 @@ class WelcomePage extends StatefulWidget {
 }
 
 class _WelcomePageState extends State<WelcomePage> {
-  // โทนสีหลัก
-  static const _bg = Color(0xFFF6EADB); // ครีมอ่อน
-  static const _orange = Color(0xFFFF7A00); // ส้มหลัก
-  // static const _gold = Color(0xFFFFB52E); // ทองไล่เฉด
+  static const _orange = Color(0xFFEA4335);
+  static const _gold = Color(0xFFFF9C00);
   static const _textDark = Color(0xFF2F2F2F);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: Color(0xFFFFF1DB),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             children: [
               const SizedBox(height: 150),
-              // โลโก้กลม ๆ ตรงกลาง
               Container(
-                width: 160,
-                height: 160,
+                width: 180,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
@@ -49,48 +48,36 @@ class _WelcomePageState extends State<WelcomePage> {
                 ),
               ),
               const SizedBox(height: 28),
-
-              // ชื่อแอป + สโลแกน
-              // ชื่อแอป + สโลแกน
               Stack(
                 children: [
-                  // Stroke (ขอบตัวอักษร)
                   Text(
                     'SONGDUAN EXPRESS',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.staatliches(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w900,
+                      fontSize: 42,
+                      fontWeight: FontWeight.bold,
                       letterSpacing: 1.2,
                       foreground: Paint()
                         ..style = PaintingStyle.stroke
-                        ..strokeWidth =
-                            3 // ความหนาเส้นขอบ
-                        ..color = const Color.fromARGB(
-                          255,
-                          255,
-                          63,
-                          0,
-                        ), // สีขอบส้ม
+                        ..strokeWidth = 3
+                        ..color = _orange,
                       shadows: [
                         Shadow(
-                          color: _orange.withOpacity(0.6),
+                          color: _gold,
                           // color: Colors.black.withOpacity(0.2),
-                          offset: const Offset(0, 8),
-                          blurRadius: 6,
+                          offset: const Offset(6, 0),
                         ),
                       ],
                     ),
                   ),
-                  // Fill (ตัวอักษรด้านใน)
                   Text(
                     'SONGDUAN EXPRESS',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.staatliches(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w900,
+                      fontSize: 42,
+                      fontWeight: FontWeight.normal,
                       letterSpacing: 1.2,
-                      color: Colors.white, // สีด้านใน (ตามฟิกม่าคือ #F3F4FD)
+                      color: Colors.white,
                       shadows: [
                         Shadow(
                           color: Colors.black.withOpacity(0.2),
@@ -102,52 +89,39 @@ class _WelcomePageState extends State<WelcomePage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
               Text(
                 'เรียลไทม์ ส่งไว ถึงชัวร์',
-                style: GoogleFonts.nunitoSans(
-                  color: _textDark.withOpacity(0.65),
-                  fontSize: 14,
+                style: GoogleFonts.notoSansThai(
+                  color: Color(0xFF8C8C8C).withOpacity(0.65),
+                  fontSize: 20,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-
               const Spacer(),
-
-              // ปุ่ม Login (สีขาว)
               SizedBox(
                 width: double.infinity,
-                height: 54,
+                height: 64,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            const LoginPages(), // เรียกหน้า LoginPages โดยตรง
-                      ),
-                    );
+                    Get.to(LoginPages());
                   },
                   style: ElevatedButton.styleFrom(
-                    elevation: 2,
-                    shadowColor: Colors.black12,
                     backgroundColor: Colors.white,
-                    foregroundColor: _orange,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    textStyle: const TextStyle(
-                      fontSize: 20,
+                  ),
+                  child: Text(
+                    'ลงชื่อเข้าสู่ระบบ',
+                    style: GoogleFonts.notoSansThai(
+                      color: _gold,
+                      fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  child: const Text('ลงชื่อเข้าสู่ระบบ'),
                 ),
               ),
-
               const SizedBox(height: 18),
-
-              // เส้นคั่น Or
               Row(
                 children: [
                   Expanded(child: _line()),
@@ -155,7 +129,6 @@ class _WelcomePageState extends State<WelcomePage> {
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Text(
                       'Or',
-                      // ignore: deprecated_member_use
                       style: GoogleFonts.abel(
                         fontWeight: FontWeight.w900,
                         fontSize: 18,
@@ -166,21 +139,14 @@ class _WelcomePageState extends State<WelcomePage> {
                   Expanded(child: _line()),
                 ],
               ),
-
               const SizedBox(height: 18),
+              GradientButton(text: 'ลงทะเบียน', onTap: _onRegister),
+              const SizedBox(height: 60),
 
-              // ปุ่ม Register (ไล่เฉด)
-              _GradientButton(text: 'ลงทะเบียน', onTap: _onRegister),
-
-              const SizedBox(height: 18),
-
-              // ข้อความเงื่อนไข/นโยบาย
               _TermsRichText(
                 onTapTerms: _openTerms,
                 onTapPrivacy: _openPrivacy,
               ),
-
-              const SizedBox(height: 70),
             ],
           ),
         ),
@@ -191,11 +157,7 @@ class _WelcomePageState extends State<WelcomePage> {
   Widget _line() => Container(height: 1, color: Colors.black12);
 
   void _onRegister() {
-    // TODO: นำทางไปหน้า Register
-    // Navigator.pushNamed(context, '/register');
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('ไปหน้า Register')));
+    Get.to(RegisterPage());
   }
 
   void _openTerms() {
@@ -213,51 +175,6 @@ class _WelcomePageState extends State<WelcomePage> {
   }
 }
 
-class _GradientButton extends StatelessWidget {
-  const _GradientButton({required this.text, required this.onTap});
-
-  final String text;
-  final VoidCallback onTap;
-
-  static const _orange = Color(0xFFFF7A00);
-  static const _gold = Color(0xFFFFB52E);
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 54,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: const LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: [_orange, _gold],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.12),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        alignment: Alignment.center,
-        child: const Text(
-          'ลงทะเบียน',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _TermsRichText extends StatelessWidget {
   const _TermsRichText({required this.onTapTerms, required this.onTapPrivacy});
 
@@ -266,45 +183,31 @@ class _TermsRichText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final base = Theme.of(
-      context,
-    ).textTheme.bodySmall?.copyWith(color: Colors.black54, height: 1.4);
+    final base = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: Colors.black54,
+      height: 1.4,
+      fontSize: 13,
+    );
 
     return Text.rich(
       TextSpan(
         text: 'ดำเนินการต่อ หมายความว่าคุณยอมรับ ',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
-          color: Colors.black87,
-        ),
+        style: base,
         children: [
           TextSpan(
             text: 'ข้อกำหนดและเงื่อนไข',
-            style: base?.copyWith(
-              color: const Color.fromARGB(255, 76, 0, 255),
-              fontWeight: FontWeight.bold,
-              decoration: TextDecoration.underline,
-            ),
+            style: base?.copyWith(color: const Color(0xff0070E0)),
             recognizer: TapGestureRecognizer()..onTap = onTapTerms,
           ),
           TextSpan(text: ' และ ', style: base),
           TextSpan(
             text: 'นโยบายความเป็นส่วนตัว',
-            style: base?.copyWith(
-              color: const Color.fromARGB(255, 76, 0, 255),
-              fontWeight: FontWeight.bold,
-              decoration: TextDecoration.underline,
-            ),
+            style: base?.copyWith(color: const Color(0xff0070E0)),
             recognizer: TapGestureRecognizer()..onTap = onTapPrivacy,
           ),
           TextSpan(
-            text: ' ของ SongDuan',
-            style: TextStyle(
-              fontWeight: FontWeight.w200,
-              fontSize: 14,
-              color: const Color.fromARGB(255, 76, 0, 255),
-            ),
+            text: ' SongDuan',
+            style: TextStyle(color: const Color(0xff0070E0), fontSize: 13),
           ),
         ],
       ),
