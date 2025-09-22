@@ -44,7 +44,7 @@ class _WelcomePageState extends State<WelcomePage> {
                 ),
                 padding: const EdgeInsets.all(18),
                 child: Image.asset(
-                  'assets/images/logo-Photoroom.png',
+                  'assets/images/logo.png',
                   fit: BoxFit.contain,
                 ),
               ),

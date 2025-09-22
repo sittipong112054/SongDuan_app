@@ -65,7 +65,7 @@ class _LoginPagesState extends State<LoginPages> {
                   ),
                   padding: const EdgeInsets.all(18),
                   child: Image.asset(
-                    'assets/images/logo-Photoroom.png', // TODO: เปลี่ยนพาธให้ตรงกับโปรเจกต์
+                    'assets/images/logo.png', // TODO: เปลี่ยนพาธให้ตรงกับโปรเจกต์
                     fit: BoxFit.contain,
                   ),
                 ),

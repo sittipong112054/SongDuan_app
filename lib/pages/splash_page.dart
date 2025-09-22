@@ -59,10 +59,7 @@ class _SplashPageState extends State<SplashPage> {
                 ],
               ),
               padding: const EdgeInsets.all(18),
-              child: Image.asset(
-                'assets/images/logo-Photoroom.png',
-                fit: BoxFit.contain,
-              ),
+              child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
             ),
             const SizedBox(height: 20),
 
