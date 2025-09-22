@@ -1,6 +1,6 @@
 {
-    "name": "derivery_app",
-    "short_name": "derivery_app",
+    "name": "songduan_app",
+    "short_name": "songduan_app",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

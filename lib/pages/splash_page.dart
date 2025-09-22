@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'package:derivery_app/pages/welcome_page.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:songduan_app/pages/welcome_page.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});

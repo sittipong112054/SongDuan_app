@@ -1,7 +1,7 @@
-import 'package:derivery_app/pages/login.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:songduan_app/pages/login.dart';
 
 class WelcomePage extends StatefulWidget {
   const WelcomePage({super.key});

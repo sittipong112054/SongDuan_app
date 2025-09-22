@@ -1,5 +1,6 @@
-import 'package:derivery_app/pages/splash_page.dart';
 import 'package:flutter/material.dart';
+import 'package:songduan_app/pages/splash_page.dart';
+
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
