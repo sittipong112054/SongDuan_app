@@ -17,7 +17,7 @@ class _LoginPagesState extends State<LoginPages> {
   // โทนสี
   static const _bg = Color(0xFFF6EADB);
   static const _orange = Color(0xFFFF7A00);
-  static const _gold = Color(0xFFFFB52E);
+  // static const _gold = Color(0xFFFFB52E);
   static const _textDark = Color(0xFF2F2F2F);
 
   @override

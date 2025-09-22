@@ -1,20 +1,20 @@
-import 'package:derivery_app/page/login.dart';
+import 'package:derivery_app/pages/login.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class Welcompage extends StatefulWidget {
-  const Welcompage({super.key, required String title});
+class WelcomePage extends StatefulWidget {
+  const WelcomePage({super.key});
 
   @override
-  State<Welcompage> createState() => _WelcompageState();
+  State<WelcomePage> createState() => _WelcomePageState();
 }
 
-class _WelcompageState extends State<Welcompage> {
+class _WelcomePageState extends State<WelcomePage> {
   // โทนสีหลัก
   static const _bg = Color(0xFFF6EADB); // ครีมอ่อน
   static const _orange = Color(0xFFFF7A00); // ส้มหลัก
-  static const _gold = Color(0xFFFFB52E); // ทองไล่เฉด
+  // static const _gold = Color(0xFFFFB52E); // ทองไล่เฉด
   static const _textDark = Color(0xFF2F2F2F);
 
   @override

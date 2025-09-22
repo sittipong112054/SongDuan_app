@@ -1,7 +1,7 @@
 import 'dart:async';
+import 'package:derivery_app/pages/welcome_page.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'welcompage.dart'; // import หน้าหลัก
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -22,7 +22,7 @@ class _SplashPageState extends State<SplashPage> {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) =>
-              const Welcompage(title: ''),
+              const WelcomePage(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             // ใช้ FadeTransition
             return FadeTransition(opacity: animation, child: child);
