@@ -126,7 +126,7 @@ class _LoginPagesState extends State<LoginPages> {
                         ),
                         recognizer: (TapGestureRecognizer()
                           ..onTap = () {
-                            Get.to(RegisterPage());
+                            Get.to(() => RegisterPage());
                           }),
                       ),
                     ],

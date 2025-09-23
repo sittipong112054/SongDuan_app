@@ -40,7 +40,7 @@ class CustomTextField extends StatelessWidget {
           controller: controller,
           keyboardType: keyboardType,
           obscureText: obscure,
-          style: GoogleFonts.nunitoSans(fontSize: 16),
+          style: GoogleFonts.notoSansThai(fontSize: 16),
           decoration: InputDecoration(
             hintText: hint,
             prefixIcon: prefixIcon,
@@ -56,7 +56,7 @@ class CustomTextField extends StatelessWidget {
               horizontal: 14,
               vertical: 16,
             ),
-            hintStyle: GoogleFonts.nunitoSans(
+            hintStyle: GoogleFonts.notoSansThai(
               color: Colors.black.withOpacity(0.35),
               fontWeight: FontWeight.w700,
             ),

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
+import 'package:songduan_app/pages/profile_page.dart';
 import 'package:songduan_app/widgets/order_card.dart';
 
 import 'package:songduan_app/widgets/order_detail_card.dart';
 import 'package:songduan_app/widgets/gradient_button.dart';
+import 'package:songduan_app/widgets/profile_header.dart';
 
 class OrderDetailPage extends StatelessWidget {
   const OrderDetailPage({
@@ -23,7 +24,6 @@ class OrderDetailPage extends StatelessWidget {
   final OrderStatus status;
 
   // static const _bg = Color(0xFFF6EADB);
-  static const _textDark = Color(0xFF2F2F2F);
 
   @override
   Widget build(BuildContext context) {
@@ -33,47 +33,21 @@ class OrderDetailPage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
           children: [
-            // Header โปรไฟล์ (ตัวอย่าง)
-            Row(
-              children: [
-                const CircleAvatar(
-                  radius: 26,
-                  backgroundColor: Colors.grey,
-                  backgroundImage: AssetImage('assets/images/johncena.png'),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'John Cena',
-                      style: GoogleFonts.nunitoSans(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: _textDark,
-                      ),
-                    ),
-                    Text(
-                      'Rider',
-                      style: GoogleFonts.nunitoSans(
-                        fontSize: 13,
-                        color: Colors.black.withOpacity(0.45),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                IconButton(
-                  onPressed: () {},
-                  icon: const Icon(Icons.more_vert_rounded),
-                  color: Colors.black54,
-                ),
-              ],
+            ProfileHeader(
+              name: "John Cena",
+              role: "Rider",
+              image: "assets/images/johncena.png",
+              onMorePressed: () {
+                Get.to(
+                  () => const ProfilePage(),
+                  transition: Transition.fade,
+                  duration: const Duration(milliseconds: 350),
+                );
+              },
             ),
+
             const SizedBox(height: 16),
 
-            // การ์ดรายละเอียด
             OrderDetailCard(
               productName: productName,
               imagePath: imagePath,
@@ -85,7 +59,6 @@ class OrderDetailPage extends StatelessWidget {
 
             const SizedBox(height: 22),
 
-            // ปุ่มล่าง (แล้วแต่ flow)
             SizedBox(
               height: 56,
               child: GradientButton(

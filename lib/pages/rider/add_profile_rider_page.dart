@@ -29,9 +29,9 @@ class _RiderProfilePageState extends State<RiderProfilePage> {
   final _picker = ImagePicker();
 
   static const _bg = Color(0xFFF6EADB);
-  static const _textDark = Color(0xFF2F2F2F);
-  // static const _orange = Color(0xFFEA4335);
-  // static const _gold = Color(0xFFFF9C00);
+  // static const _textDark = Color(0xFF2F2F2F);
+  static const _orange = Color(0xFFEA4335);
+  static const _gold = Color(0xFFFF9C00);
 
   @override
   void dispose() {
@@ -46,14 +46,31 @@ class _RiderProfilePageState extends State<RiderProfilePage> {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: _bg,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          color: _textDark.withOpacity(0.85),
-          onPressed: () => Get.back(),
-          splashRadius: 22,
+        centerTitle: false,
+        title: Text(
+          '',
+          style: GoogleFonts.notoSansThai(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+          ),
         ),
+        leading: IconButton(
+          onPressed: () => Get.back(),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          color: Colors.white,
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [_orange, _gold],
+            ),
+          ),
+        ),
+        backgroundColor: _orange,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -81,7 +98,7 @@ class _RiderProfilePageState extends State<RiderProfilePage> {
                                   child: Text(
                                     'Add\nPhoto',
                                     textAlign: TextAlign.center,
-                                    style: GoogleFonts.nunitoSans(
+                                    style: GoogleFonts.notoSansThai(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w700,
                                       color: Colors.black.withOpacity(0.4),
@@ -181,20 +198,9 @@ class _RiderProfilePageState extends State<RiderProfilePage> {
   }
 
   void _onSubmit() {
-    // ScaffoldMessenger.of(context).showSnackBar(
-    //   SnackBar(
-    //     content: Text(
-    //       'ส่งข้อมูล Rider: ${_nameCtrl.text} / ${_phoneCtrl.text} / ${_plateCtrl.text}',
-    //       style: GoogleFonts.nunitoSans(),
-    //     ),
-    //   ),
-    // );
-
-    Get.to(RiderHomePage());
+    Get.to(() => RiderHomePage());
   }
 }
-
-// ---------------- Widgets ย่อย ----------------
 
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.text);
@@ -204,7 +210,7 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: GoogleFonts.nunitoSans(
+      style: GoogleFonts.notoSansThai(
         fontSize: 16.5,
         fontWeight: FontWeight.w900,
         color: const Color(0xFF2F2F2F),
@@ -223,7 +229,7 @@ class _VehiclePictureBox extends StatelessWidget {
   Widget build(BuildContext context) {
     final hint = Text(
       'Picture of vehicle',
-      style: GoogleFonts.nunitoSans(
+      style: GoogleFonts.notoSansThai(
         color: Colors.black.withOpacity(0.25),
         fontSize: 16,
         fontWeight: FontWeight.w700,

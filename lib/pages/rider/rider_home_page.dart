@@ -6,6 +6,7 @@ import 'package:songduan_app/pages/rider/order_detail_page.dart';
 
 import 'package:songduan_app/widgets/order_card.dart';
 import 'package:songduan_app/widgets/order_detail_card.dart';
+import 'package:songduan_app/widgets/profile_header.dart';
 
 class RiderHomePage extends StatelessWidget {
   const RiderHomePage({super.key});
@@ -21,51 +22,18 @@ class RiderHomePage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
           children: [
-            // Header: profile
-            Row(
-              children: [
-                const CircleAvatar(
-                  radius: 26,
-                  backgroundColor: Colors.grey,
-                  backgroundImage: AssetImage('assets/images/johncena.png'),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'John Cena',
-                      style: GoogleFonts.nunitoSans(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: _textDark,
-                      ),
-                    ),
-                    Text(
-                      'Rider',
-                      style: GoogleFonts.nunitoSans(
-                        fontSize: 13,
-                        color: Colors.black.withOpacity(0.45),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                IconButton(
-                  onPressed: () {
-                    Get.to(
-                      () => const ProfilePage(),
-                      transition: Transition.fade,
-                      duration: const Duration(milliseconds: 350),
-                    );
-                  },
-                  icon: const Icon(Icons.more_vert_rounded),
-                  color: Colors.black54,
-                ),
-              ],
+            ProfileHeader(
+              name: "John Cena",
+              role: "Rider",
+              image: "assets/images/johncena.png",
+              onMorePressed: () {
+                Get.to(
+                  () => const ProfilePage(),
+                  transition: Transition.fade,
+                  duration: const Duration(milliseconds: 350),
+                );
+              },
             ),
-
             const SizedBox(height: 16),
             Text(
               'รายการสินค้า',
