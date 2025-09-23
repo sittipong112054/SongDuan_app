@@ -2,8 +2,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:songduan_app/pages/add_profile_member_page.dart';
-import 'package:songduan_app/pages/add_profile_rider_page.dart';
+import 'package:songduan_app/pages/member/add_profile_member_page.dart';
+import 'package:songduan_app/pages/rider/add_profile_rider_page.dart';
 import 'package:songduan_app/pages/login_page.dart';
 
 import 'package:songduan_app/widgets/gradient_button.dart';
@@ -27,9 +27,8 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _obscurePass = true;
   bool _obscureConfirm = true;
 
-  // โทนสี
   static const _bg = Color(0xFFF6EADB);
-  static const _orange = Color(0xFFEA4335);
+  static const _gold = Color(0xFFFF9C00);
   static const _textDark = Color(0xFF2F2F2F);
 
   @override
@@ -167,7 +166,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         style: const TextStyle(
                           fontWeight: FontWeight.w800,
                           decoration: TextDecoration.underline,
-                          color: _orange,
+                          color: _gold,
                         ),
                         recognizer: (TapGestureRecognizer()
                           ..onTap = () {

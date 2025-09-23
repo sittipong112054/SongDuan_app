@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 // ถ้าใช้ image_picker ให้เพิ่ม dependency แล้ว uncomment ส่วนที่เกี่ยวข้อง
 import 'package:image_picker/image_picker.dart';
+import 'package:songduan_app/pages/rider/rider_home_page.dart';
 
 import 'package:songduan_app/widgets/gradient_button.dart';
 import 'package:songduan_app/widgets/custom_text_field.dart';
@@ -149,7 +150,6 @@ class _RiderProfilePageState extends State<RiderProfilePage> {
 
               const SizedBox(height: 14),
 
-              // Picture of vehicle box + edit icon
               _VehiclePictureBox(
                 file: _vehicleFile,
                 onPick: _pickVehiclePicture,
@@ -173,33 +173,24 @@ class _RiderProfilePageState extends State<RiderProfilePage> {
   Future<void> _pickAvatar() async {
     final x = await _picker.pickImage(source: ImageSource.gallery);
     if (x != null) setState(() => _avatarFile = File(x.path));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('เลือกรูปโปรไฟล์ (ใส่ image_picker ภายหลัง)'),
-      ),
-    );
   }
 
   Future<void> _pickVehiclePicture() async {
     final x = await _picker.pickImage(source: ImageSource.gallery);
     if (x != null) setState(() => _vehicleFile = File(x.path));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('เลือกรูปยานพาหนะ (ใส่ image_picker ภายหลัง)'),
-      ),
-    );
   }
 
   void _onSubmit() {
-    // TODO: validate & submit
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'ส่งข้อมูล Rider: ${_nameCtrl.text} / ${_phoneCtrl.text} / ${_plateCtrl.text}',
-          style: GoogleFonts.nunitoSans(),
-        ),
-      ),
-    );
+    // ScaffoldMessenger.of(context).showSnackBar(
+    //   SnackBar(
+    //     content: Text(
+    //       'ส่งข้อมูล Rider: ${_nameCtrl.text} / ${_phoneCtrl.text} / ${_plateCtrl.text}',
+    //       style: GoogleFonts.nunitoSans(),
+    //     ),
+    //   ),
+    // );
+
+    Get.to(RiderHomePage());
   }
 }
 
