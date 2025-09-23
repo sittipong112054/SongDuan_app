@@ -15,7 +15,7 @@ class MyApp extends StatelessWidget {
     return GetMaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        textTheme: GoogleFonts.nunitoSansTextTheme(),
+        textTheme: GoogleFonts.notoSansThaiTextTheme(),
         colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFFFF9C00)),
       ),
       home: SplashPage(),

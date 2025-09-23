@@ -103,7 +103,7 @@ class _WelcomePageState extends State<WelcomePage> {
                 height: 64,
                 child: ElevatedButton(
                   onPressed: () {
-                    Get.to(LoginPages());
+                    Get.to(() => LoginPages());
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
@@ -157,7 +157,7 @@ class _WelcomePageState extends State<WelcomePage> {
   Widget _line() => Container(height: 1, color: Colors.black12);
 
   void _onRegister() {
-    Get.to(RegisterPage());
+    Get.to(() => RegisterPage());
   }
 
   void _openTerms() {

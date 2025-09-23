@@ -7,7 +7,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:songduan_app/pages/map_page.dart';
 
-// สมมติว่ามีอยู่แล้ว
 import 'package:songduan_app/widgets/custom_text_field.dart';
 import 'package:songduan_app/widgets/gradient_button.dart';
 
@@ -24,7 +23,7 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
   final _phoneCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
 
-  static const _bg = Color(0xFFF6EADB);
+  // static const _bg = Color(0xFFF6EADB);
   // static const _textDark = Color(0xFF2F2F2F);
   static const _orange = Color(0xFFEA4335);
   static const _gold = Color(0xFFFF9C00);
@@ -44,13 +43,13 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: Color(0xFFF6EADB),
       appBar: AppBar(
         elevation: 0,
         centerTitle: false,
         title: Text(
           'ที่อยู่จัดส่ง',
-          style: GoogleFonts.nunitoSans(
+          style: GoogleFonts.notoSansThai(
             color: Colors.white,
             fontSize: 18,
             fontWeight: FontWeight.w900,
@@ -178,7 +177,7 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
       SnackBar(
         content: Text(
           'บันทึกที่อยู่: ${_placeNameCtrl.text}',
-          style: GoogleFonts.nunitoSans(),
+          style: GoogleFonts.notoSansThai(),
         ),
       ),
     );
@@ -199,7 +198,7 @@ class _SectionTitle extends StatelessWidget {
       padding: EdgeInsets.only(top: top),
       child: Text(
         text,
-        style: GoogleFonts.nunitoSans(
+        style: GoogleFonts.notoSansThai(
           fontSize: 16.5,
           fontWeight: FontWeight.w900,
           color: const Color(0xFF2F2F2F),
@@ -237,7 +236,7 @@ class _PickFromMapTile extends StatelessWidget {
               Expanded(
                 child: Text(
                   'เลือกจากแผนที่',
-                  style: GoogleFonts.nunitoSans(
+                  style: GoogleFonts.notoSansThai(
                     fontSize: 15.5,
                     fontWeight: FontWeight.w700,
                     color: Colors.black.withOpacity(0.5),
@@ -256,31 +255,6 @@ class _PickFromMapTile extends StatelessWidget {
     );
   }
 }
-
-// class _MapPreviewCard extends StatelessWidget {
-//   const _MapPreviewCard({required this.assetPath});
-//   final String assetPath;
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Container(
-//       height: 170,
-//       decoration: BoxDecoration(
-//         color: const Color(0xFFF0F2F5),
-//         borderRadius: BorderRadius.circular(14),
-//         boxShadow: [
-//           BoxShadow(
-//             color: Colors.black.withOpacity(0.12),
-//             offset: const Offset(0, 6),
-//             blurRadius: 10,
-//           ),
-//         ],
-//       ),
-//       clipBehavior: Clip.antiAlias,
-//       child: Image.asset(assetPath, fit: BoxFit.cover),
-//     );
-//   }
-// }
 
 class _NoteBox extends StatelessWidget {
   const _NoteBox({required this.controller});
@@ -309,13 +283,13 @@ class _NoteBox extends StatelessWidget {
         textAlignVertical: TextAlignVertical.top,
         decoration: InputDecoration(
           hintText: 'ตัวอย่าง รั้วสีขาว หลังคาสีส้ม',
-          hintStyle: GoogleFonts.nunitoSans(
+          hintStyle: GoogleFonts.notoSansThai(
             color: Colors.black.withOpacity(0.28),
             fontWeight: FontWeight.w700,
           ),
           border: InputBorder.none,
         ),
-        style: GoogleFonts.nunitoSans(fontSize: 16),
+        style: GoogleFonts.notoSansThai(fontSize: 16),
       ),
     );
   }

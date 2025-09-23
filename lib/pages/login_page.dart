@@ -40,7 +40,7 @@ class _LoginPagesState extends State<LoginPages> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           color: _textDark.withOpacity(0.85),
-          onPressed: () => Get.to(WelcomePage()),
+          onPressed: () => Get.to(() => WelcomePage()),
           splashRadius: 22,
         ),
       ),
