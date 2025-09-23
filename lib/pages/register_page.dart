@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:songduan_app/pages/member/add_profile_member_page.dart';
 import 'package:songduan_app/pages/rider/add_profile_rider_page.dart';
 import 'package:songduan_app/pages/login_page.dart';
+import 'package:songduan_app/pages/welcome_page.dart';
 
 import 'package:songduan_app/widgets/gradient_button.dart';
 import 'package:songduan_app/widgets/custom_text_field.dart';
@@ -49,7 +50,7 @@ class _RegisterPageState extends State<RegisterPage> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           color: _textDark.withOpacity(0.85),
-          onPressed: () => Get.back(),
+          onPressed: () => Get.to(WelcomePage()),
           splashRadius: 22,
         ),
       ),

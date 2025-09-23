@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:songduan_app/pages/login_page.dart';
 import 'package:songduan_app/widgets/gradient_button.dart';
 
 class ProfilePage extends StatelessWidget {
@@ -140,6 +141,7 @@ class ProfilePage extends StatelessWidget {
             text: 'ออกจากระบบ',
             onTap: () {
               Get.snackbar('ออกจากระบบ', 'ทำการออกจากระบบแล้ว');
+              Get.to(() => LoginPages());
             },
           ),
         ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:songduan_app/pages/register_page.dart';
+import 'package:songduan_app/pages/welcome_page.dart';
 import 'package:songduan_app/widgets/custom_text_field.dart';
 import 'package:songduan_app/widgets/gradient_button.dart';
 
@@ -39,7 +40,7 @@ class _LoginPagesState extends State<LoginPages> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           color: _textDark.withOpacity(0.85),
-          onPressed: () => Get.back(),
+          onPressed: () => Get.to(WelcomePage()),
           splashRadius: 22,
         ),
       ),
