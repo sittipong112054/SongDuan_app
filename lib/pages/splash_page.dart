@@ -18,7 +18,7 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 2), () {
+    Future.delayed(const Duration(seconds: 3), () {
       Get.off(
         () => const WelcomePage(),
         transition: Transition.circularReveal,
@@ -40,13 +40,6 @@ class _SplashPageState extends State<SplashPage> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.07),
-                    blurRadius: 16,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
               ),
               padding: const EdgeInsets.all(18),
               child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
