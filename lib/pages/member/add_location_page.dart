@@ -1,59 +1,50 @@
 import 'dart:developer';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-
-// ถ้าใช้ image_picker ให้เพิ่ม dependency แล้ว uncomment ส่วนที่เกี่ยวข้อง
-import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:songduan_app/pages/member/map_page.dart';
-import 'package:songduan_app/pages/rider/rider_home_page.dart';
 
-import 'package:songduan_app/widgets/gradient_button.dart';
 import 'package:songduan_app/widgets/custom_text_field.dart';
+import 'package:songduan_app/widgets/gradient_button.dart';
 
-class MemberProfilePage extends StatefulWidget {
-  const MemberProfilePage({super.key});
+class AddLocationPage extends StatefulWidget {
+  const AddLocationPage({super.key});
 
   @override
-  State<MemberProfilePage> createState() => _MemberProfilePageState();
+  State<AddLocationPage> createState() => _AddLocationPageState();
 }
 
-class _MemberProfilePageState extends State<MemberProfilePage> {
-  final _nameCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
+class _AddLocationPageState extends State<AddLocationPage> {
+  final _placeNameCtrl = TextEditingController();
+  final _noteCtrl = TextEditingController();
 
-  File? _avatarFile;
-
-  final _picker = ImagePicker();
-
-  final MapController mapController = MapController();
-  LatLng latLng = LatLng(16.246373, 103.251827);
-
-  static const _bg = Color(0xFFF6EADB);
+  // static const _bg = Color(0xFFF6EADB);
   // static const _textDark = Color(0xFF2F2F2F);
   static const _orange = Color(0xFFEA4335);
   static const _gold = Color(0xFFFF9C00);
 
+  final MapController mapController = MapController();
+  LatLng latLng = LatLng(16.246373, 103.251827);
+
   @override
   void dispose() {
-    _nameCtrl.dispose();
-    _phoneCtrl.dispose();
+    _placeNameCtrl.dispose();
+    _noteCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: Color(0xFFF6EADB),
       appBar: AppBar(
         elevation: 0,
         centerTitle: false,
         title: Text(
-          'กรอกข้อมูลเพิ่มเติม',
+          'ที่อยู่',
           style: GoogleFonts.notoSansThai(
             color: Colors.white,
             fontSize: 18,
@@ -78,90 +69,24 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 6),
-
-              // Avatar + edit
-              Center(
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    CircleAvatar(
-                      radius: 78,
-                      backgroundColor: Color(0xFFF0F2F5),
-                      child: ClipOval(
-                        child: SizedBox(
-                          width: 148,
-                          height: 148,
-                          child: _avatarFile != null
-                              ? Image.file(_avatarFile!, fit: BoxFit.cover)
-                              : Center(
-                                  child: Text(
-                                    'Add\nPhoto',
-                                    textAlign: TextAlign.center,
-                                    style: GoogleFonts.notoSansThai(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.black.withOpacity(0.4),
-                                    ),
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      right: -2,
-                      bottom: -2,
-                      child: GestureDetector(
-                        onTap: _pickAvatar,
-                        child: Container(
-                          width: 30,
-                          height: 30,
-                          decoration: BoxDecoration(
-                            color: Colors.black,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                          child: const Icon(
-                            Icons.edit,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 22),
-
-              _SectionTitle('ข้อมูลติดต่อ'),
+              // ชื่อของที่อยู่
+              _SectionTitle('ชื่อของที่อยู่'),
               const SizedBox(height: 8),
-
               CustomTextField(
-                hint: 'ชื่อ',
-                controller: _nameCtrl,
-                keyboardType: TextInputType.name,
-                prefixIcon: const Icon(Icons.person_rounded, size: 28),
-              ),
-              const SizedBox(height: 12),
-
-              CustomTextField(
-                hint: 'เบอร์โทร',
-                controller: _phoneCtrl,
-                keyboardType: TextInputType.phone,
-                prefixIcon: const Icon(Icons.call_rounded, size: 28),
+                hint: 'เช่น บ้านเลขที่, ที่ทำงาน',
+                controller: _placeNameCtrl,
+                keyboardType: TextInputType.text,
               ),
 
               const SizedBox(height: 18),
 
-              _SectionTitle('ข้อมูลที่อยู่'),
+              // ที่อยู่
+              _SectionTitle('ที่อยู่'),
               const SizedBox(height: 8),
-
               _PickFromMapTile(onTap: _goPickOnMap),
               const SizedBox(height: 10),
 
@@ -198,12 +123,20 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
                 ),
               ),
               const SizedBox(height: 18),
+
+              // ระบุโน้ต
+              _SectionTitle('ระบุโน้ต'),
+              const SizedBox(height: 8),
+              _NoteBox(controller: _noteCtrl),
+
+              const SizedBox(height: 28),
+
+              // ปุ่มลงทะเบียน
               SizedBox(
                 height: 56,
-                child: GradientButton(text: 'ลงทะเบียน', onTap: _onSubmit),
+                child: GradientButton(text: 'ลงทะเบียน', onTap: _submit),
               ),
-
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
             ],
           ),
         ),
@@ -215,28 +148,38 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
     Get.to(() => MapPickPage());
   }
 
-  Future<void> _pickAvatar() async {
-    final x = await _picker.pickImage(source: ImageSource.gallery);
-    if (x != null) setState(() => _avatarFile = File(x.path));
-  }
-
-  void _onSubmit() {
-    Get.to(() => RiderHomePage());
+  void _submit() {
+    FocusScope.of(context).unfocus();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'บันทึกที่อยู่: ${_placeNameCtrl.text}',
+          style: GoogleFonts.notoSansThai(),
+        ),
+      ),
+    );
   }
 }
 
+// ---------------- Widgets ย่อย ----------------
+
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.text);
+  // ignore: unused_element_parameter
+  const _SectionTitle(this.text, {this.top = 0});
   final String text;
+  final double top;
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: GoogleFonts.notoSansThai(
-        fontSize: 16.5,
-        fontWeight: FontWeight.w900,
-        color: const Color(0xFF2F2F2F),
+    return Padding(
+      padding: EdgeInsets.only(top: top),
+      child: Text(
+        text,
+        style: GoogleFonts.notoSansThai(
+          fontSize: 16.5,
+          fontWeight: FontWeight.w900,
+          color: const Color(0xFF2F2F2F),
+        ),
       ),
     );
   }
@@ -285,6 +228,45 @@ class _PickFromMapTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _NoteBox extends StatelessWidget {
+  const _NoteBox({required this.controller});
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 130,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F2F5),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.12),
+            offset: const Offset(0, 6),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      child: TextField(
+        controller: controller,
+        maxLines: null,
+        expands: true,
+        textAlignVertical: TextAlignVertical.top,
+        decoration: InputDecoration(
+          hintText: 'ตัวอย่าง รั้วสีขาว หลังคาสีส้ม',
+          hintStyle: GoogleFonts.notoSansThai(
+            color: Colors.black.withOpacity(0.28),
+            fontWeight: FontWeight.w700,
+          ),
+          border: InputBorder.none,
+        ),
+        style: GoogleFonts.notoSansThai(fontSize: 16),
       ),
     );
   }

@@ -82,7 +82,7 @@ class _LoginPagesState extends State<LoginPages> {
               ),
               const SizedBox(height: 64),
               CustomTextField(
-                hint: 'Email',
+                hint: 'Username',
                 controller: _emailCtrl,
                 keyboardType: TextInputType.emailAddress,
                 prefixIcon: const Icon(Icons.alternate_email_rounded, size: 28),

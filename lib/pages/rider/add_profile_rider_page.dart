@@ -49,7 +49,7 @@ class _RiderProfilePageState extends State<RiderProfilePage> {
         elevation: 0,
         centerTitle: false,
         title: Text(
-          '',
+          'กรอกข้อมูลเพิ่มเติม',
           style: GoogleFonts.notoSansThai(
             color: Colors.white,
             fontSize: 18,
