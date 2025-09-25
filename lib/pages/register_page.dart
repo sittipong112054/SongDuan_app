@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:songduan_app/models/register_payload.dart';
 import 'package:songduan_app/pages/member/add_profile_member_page.dart';
 import 'package:songduan_app/pages/rider/add_profile_rider_page.dart';
 import 'package:songduan_app/pages/login_page.dart';
@@ -17,7 +18,7 @@ class RegisterPage extends StatefulWidget {
   State<RegisterPage> createState() => _RegisterPageState();
 }
 
-enum RegisterRole { member, rider }
+// enum RegisterRole { member, rider }
 
 class _RegisterPageState extends State<RegisterPage> {
   final _userCtrl = TextEditingController();
@@ -187,12 +188,16 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void _onNext() {
+    final payload = RegisterPayload(
+      username: _userCtrl.text.trim(),
+      password: _passCtrl.text, // อย่าลืม validate ว่าตรงกับ confirm
+      role: _role,
+    );
+
     if (_role == RegisterRole.rider) {
-      // ไปหน้า Fill Your Profile (Rider)
-      Get.to(() => const RiderProfilePage());
+      Get.to(() => const RiderProfilePage(), arguments: payload);
     } else {
-      // ถ้าเป็น Member → ทำ flow อื่น เช่น กลับหน้า Home หรือ Verify OTP
-      Get.to(() => const MemberProfilePage());
+      Get.to(() => const MemberProfilePage(), arguments: payload);
     }
   }
 }

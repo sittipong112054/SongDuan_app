@@ -1,4 +1,3 @@
-import 'dart:developer';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -6,7 +5,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-// ถ้าใช้ image_picker ให้เพิ่ม dependency แล้ว uncomment ส่วนที่เกี่ยวข้อง
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:songduan_app/pages/member/map_page.dart';
@@ -25,10 +23,13 @@ class MemberProfilePage extends StatefulWidget {
 class _MemberProfilePageState extends State<MemberProfilePage> {
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
+  final _placeNameCtrl = TextEditingController();
+  final _addressNameCtrl = TextEditingController();
 
   File? _avatarFile;
-
   final _picker = ImagePicker();
+
+  String? _selectedAddress;
 
   final MapController mapController = MapController();
   LatLng latLng = LatLng(16.246373, 103.251827);
@@ -42,6 +43,8 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
   void dispose() {
     _nameCtrl.dispose();
     _phoneCtrl.dispose();
+    _placeNameCtrl.dispose();
+    _addressNameCtrl.dispose();
     super.dispose();
   }
 
@@ -162,41 +165,68 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
               _SectionTitle('ข้อมูลที่อยู่'),
               const SizedBox(height: 8),
 
+              CustomTextField(
+                hint: 'ชื่อที่อยู่, ที่ทำงาน',
+                controller: _placeNameCtrl,
+                keyboardType: TextInputType.text,
+                prefixIcon: const Icon(Icons.home, size: 28),
+              ),
+              const SizedBox(height: 8),
+
+              CustomTextField(
+                hint: 'บ้านเลขที่ หมู่บ้าน ตำบล อำเภอ จังหวัด ประเทศ',
+                controller: _addressNameCtrl,
+                keyboardType: TextInputType.text,
+                prefixIcon: const Icon(Icons.map, size: 28),
+              ),
+              const SizedBox(height: 8),
+
               _PickFromMapTile(onTap: _goPickOnMap),
               const SizedBox(height: 10),
 
-              SizedBox(
-                height: 200,
-                child: FlutterMap(
-                  mapController: mapController,
-                  options: MapOptions(
-                    initialCenter: latLng,
-                    initialZoom: 15.2,
-                    onTap: (tapPosition, point) {
-                      log(point.toString());
-                    },
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=0b03b55da9a64adab5790c1c9515b15a',
-                      userAgentPackageName: 'net.gonggang.osm_demo',
-                    ),
-                    MarkerLayer(
-                      markers: [
-                        Marker(
-                          point: latLng,
-                          child: Icon(Icons.location_on, color: Colors.red),
+              if (_selectedAddress != null) ...[
+                SizedBox(
+                  height: 200,
+                  child: IgnorePointer(
+                    // หรือ AbsorbPointer()
+                    child: FlutterMap(
+                      mapController: mapController,
+                      options: MapOptions(
+                        initialCenter: latLng,
+                        initialZoom: 15.2,
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate:
+                              'https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=0b03b55da9a64adab5790c1c9515b15a',
+                          userAgentPackageName: 'net.gonggang.osm_demo',
                         ),
-                        Marker(
-                          point: LatLng(16.24099, 103.254331),
-                          child: Icon(Icons.location_on, color: Colors.blue),
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              point: latLng,
+                              child: const Icon(
+                                Icons.location_on,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+
+                const SizedBox(height: 8),
+                Text(
+                  _selectedAddress!,
+                  style: GoogleFonts.notoSansThai(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black.withOpacity(0.7),
+                  ),
+                ),
+              ],
               const SizedBox(height: 18),
               SizedBox(
                 height: 56,
@@ -211,8 +241,24 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
     );
   }
 
-  void _goPickOnMap() {
-    Get.to(() => MapPickPage());
+  void _goPickOnMap() async {
+    final result = await Get.to(() => const MapPickPage());
+    if (result != null && result is Map && result['latlng'] is LatLng) {
+      final LatLng picked = result['latlng'] as LatLng;
+      final String? addr = result['address'] as String?;
+
+      setState(() {
+        latLng = picked;
+        _selectedAddress = addr;
+
+        if (_addressNameCtrl.text.trim().isEmpty && addr != null) {
+          _addressNameCtrl.text = addr;
+        }
+      });
+
+      // สำคัญ: initialCenter ใช้แค่ครั้งแรก ต้อง move ด้วย controller
+      mapController.move(picked, 16.0);
+    }
   }
 
   Future<void> _pickAvatar() async {
@@ -262,14 +308,14 @@ class _PickFromMapTile extends StatelessWidget {
           child: Row(
             children: [
               const Icon(
-                Icons.photo_camera_back_rounded,
+                Icons.maps_home_work_sharp,
                 size: 26,
                 color: Colors.black54,
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'เลือกจากแผนที่',
+                  'เลือกตำแหน่งจากแผนที่',
                   style: GoogleFonts.notoSansThai(
                     fontSize: 15.5,
                     fontWeight: FontWeight.w700,

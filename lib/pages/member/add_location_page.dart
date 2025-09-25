@@ -5,7 +5,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:songduan_app/pages/member/map_page.dart';
 
 import 'package:songduan_app/widgets/custom_text_field.dart';
 import 'package:songduan_app/widgets/gradient_button.dart';
@@ -145,7 +144,7 @@ class _AddLocationPageState extends State<AddLocationPage> {
   }
 
   void _goPickOnMap() {
-    Get.to(() => MapPickPage());
+    // Get.to(() => MapPickPage());
   }
 
   void _submit() {

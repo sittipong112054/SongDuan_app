@@ -20,10 +20,7 @@ class MapPickPage extends StatefulWidget {
 class _MapPickPageState extends State<MapPickPage> {
   final MapController _mapController = MapController();
 
-  // ตำแหน่งเริ่มต้นสำรอง (กรุงเทพ) เผื่อ user ไม่ให้ permission
   final LatLng _fallbackCenter = const LatLng(13.7563, 100.5018);
-
-  // จะอัปเดตเป็น GPS จริงหลัง init
   LatLng _currentCenter = const LatLng(13.7563, 100.5018);
 
   LatLng? _picked;
@@ -31,8 +28,7 @@ class _MapPickPageState extends State<MapPickPage> {
 
   final TextEditingController _searchCtrl = TextEditingController();
 
-  static const _apiKey =
-      '0b03b55da9a64adab5790c1c9515b15a'; // Thunderforest API key
+  static const _apiKey = '0b03b55da9a64adab5790c1c9515b15a';
 
   @override
   void initState() {
@@ -45,7 +41,6 @@ class _MapPickPageState extends State<MapPickPage> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        // ถ้า service ปิด ใช้ fallback แล้วจบแบบนุ่มนวล
         setState(() => _currentCenter = _fallbackCenter);
         return;
       }
@@ -57,7 +52,6 @@ class _MapPickPageState extends State<MapPickPage> {
 
       if (permission == LocationPermission.deniedForever ||
           permission == LocationPermission.denied) {
-        // ผู้ใช้ปฏิเสธ ใช้ fallback
         setState(() => _currentCenter = _fallbackCenter);
         return;
       }
@@ -66,12 +60,16 @@ class _MapPickPageState extends State<MapPickPage> {
         desiredAccuracy: LocationAccuracy.high,
       );
 
-      _currentCenter = LatLng(pos.latitude, pos.longitude);
-      // ขยับกล้องไป GPS
-      _mapController.move(_currentCenter, 15);
-      setState(() {}); // รีเฟรชให้ initialCenter ใช้ค่าใหม่
+      final gps = LatLng(pos.latitude, pos.longitude);
+
+      setState(() {
+        _currentCenter = gps;
+        _picked = gps;
+      });
+
+      _mapController.move(gps, 15);
+      await _reverseGeocode(gps);
     } catch (_) {
-      // เงียบแบบผู้ดี: ใช้ fallback
       setState(() => _currentCenter = _fallbackCenter);
     }
   }

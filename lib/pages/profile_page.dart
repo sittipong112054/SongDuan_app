@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:songduan_app/pages/login_page.dart';
-import 'package:songduan_app/pages/member/map_page.dart';
+
 import 'package:songduan_app/widgets/gradient_button.dart';
 
 class ProfilePage extends StatelessWidget {
@@ -108,7 +108,7 @@ class ProfilePage extends StatelessWidget {
                 GestureDetector(
                   onTap: () {
                     Get.snackbar('ที่อยู่', 'เพิ่มที่อยู่ใหม่');
-                    Get.to(() => MapPickPage());
+                    // Get.to(() => MapPickPage());
                   },
                   child: Text(
                     'เพิ่มที่อยู่',
