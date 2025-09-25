@@ -297,13 +297,23 @@ class _LoginPagesState extends State<LoginPages> {
 void _goByRole(String role, {required Map<String, dynamic> userData}) {
   switch (role) {
     case 'RIDER':
-      Get.offAll(() => const RiderHomePage(), arguments: userData);
+      Get.offAll(
+        () => const RiderHomePage(),
+        arguments: userData,
+        transition: Transition.circularReveal,
+        duration: const Duration(milliseconds: 1000),
+      );
       break;
     case 'MEMBER':
-      Get.offAll(() => const MemberHomePage(), arguments: userData);
+      Get.offAll(
+        () => const MemberHomePage(),
+        arguments: userData,
+        transition: Transition.circularReveal,
+        duration: const Duration(milliseconds: 1000),
+      );
       break;
     default:
-      Get.offAll(() => const WelcomePage(), arguments: userData);
+      Get.offAll(() => const WelcomePage());
       Get.snackbar(
         'คำเตือน',
         'ไม่รู้จักบทบาท ($role) ส่งไปหน้าเริ่มต้น',

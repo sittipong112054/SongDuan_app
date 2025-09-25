@@ -1,18 +1,87 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:songduan_app/config/config.dart';
 import 'package:songduan_app/pages/login_page.dart';
-
 import 'package:songduan_app/widgets/gradient_button.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
   static const _textDark = Color(0xFF2F2F2F);
+  String? _baseUrl;
+
+  late final Map<String, dynamic> user;
+  late final String name;
+  late final String roleLabel;
+  late final String phone;
+  late final String? avatarPath;
+  late final List<Map<String, dynamic>> addresses;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadConfig();
+
+    final args = Get.arguments;
+    user = (args is Map<String, dynamic>) ? args : <String, dynamic>{};
+
+    name = (user['name'] ?? user['username'] ?? 'ผู้ใช้').toString();
+    final role = (user['role'] ?? '').toString().toUpperCase();
+    roleLabel = switch (role) {
+      'RIDER' => 'Rider',
+      'MEMBER' => 'Member',
+      'USER' => 'User',
+      _ => 'Member',
+    };
+    phone = (user['phone'] ?? '-').toString();
+    avatarPath = user['avatar_path']?.toString();
+
+    final rawAddrs = user['addresses'];
+    if (rawAddrs is List) {
+      addresses = rawAddrs
+          .whereType<Map>()
+          .map((e) => e.map((k, v) => MapEntry(k.toString(), v)))
+          .toList()
+          .cast<Map<String, dynamic>>();
+    } else {
+      addresses = const [];
+    }
+  }
+
+  Future<void> _loadConfig() async {
+    try {
+      final config = await Configuration.getConfig();
+      setState(() {
+        _baseUrl = config['apiEndpoint'] as String?;
+      });
+    } catch (e) {}
+  }
+
+  ImageProvider _resolveAvatar(String? s) {
+    if (s == null || s.trim().isEmpty) {
+      return const AssetImage('assets/images/default_avatar.png');
+    }
+    final val = s.trim();
+
+    if (val.startsWith('/')) {
+      final b = (_baseUrl ?? '').trimRight();
+      if (b.isNotEmpty) return NetworkImage('$b$val');
+      return const AssetImage('assets/images/default_avatar.png');
+    }
+
+    return AssetImage(val);
+  }
 
   @override
   Widget build(BuildContext context) {
     final double avatarSize = MediaQuery.of(context).size.width / 3;
+
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
@@ -34,12 +103,11 @@ class ProfilePage extends StatelessWidget {
       ),
       backgroundColor: Colors.white,
 
-      // เนื้อหาเลื่อน
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
           children: [
-            // Avatar + name + role
+            // Avatar + name + role (ใช้รูปจริง)
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -47,7 +115,8 @@ class ProfilePage extends StatelessWidget {
                   padding: const EdgeInsets.only(left: 10),
                   child: CircleAvatar(
                     radius: avatarSize / 2,
-                    backgroundImage: const AssetImage('assets/images/Vin.png'),
+                    backgroundImage: _resolveAvatar(avatarPath),
+                    backgroundColor: Colors.grey.shade300,
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -56,7 +125,7 @@ class ProfilePage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Vin Diesel',
+                        name,
                         style: GoogleFonts.nunitoSans(
                           fontSize: 24,
                           fontWeight: FontWeight.w900,
@@ -64,7 +133,7 @@ class ProfilePage extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Member',
+                        roleLabel,
                         style: GoogleFonts.nunitoSans(
                           fontSize: 14,
                           color: Colors.black.withOpacity(0.45),
@@ -88,9 +157,9 @@ class ProfilePage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
-            const _ReadOnlyField(hint: 'Name', value: 'Vin Diesel'),
+            _ReadOnlyField(hint: 'Name', value: name),
             const SizedBox(height: 10),
-            const _ReadOnlyField(hint: 'Phone Number', value: '093-9054980'),
+            _ReadOnlyField(hint: 'Phone Number', value: phone),
 
             const SizedBox(height: 18),
 
@@ -123,20 +192,27 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 10),
 
-            const _AddressTile(
-              title: 'ร้านข้าวมันไก่',
-              subtitle: 'บ้านบางดุสึอิ: ตำบลสงสัย...',
-            ),
-            const SizedBox(height: 10),
-            const _AddressTile(
-              title: 'ร้านข้าวมันไก่',
-              subtitle: 'บ้านบางดุสึอิ: ตำบลสงสัย...',
-            ),
+            // แสดงรายการที่อยู่จริง (ถ้ามี) ไม่งั้นโชว์ตัวอย่างว่าง ๆ
+            if (addresses.isNotEmpty)
+              ...addresses.map((addr) {
+                final title = (addr['label'] ?? 'ที่อยู่').toString();
+                final subtitle = (addr['address_text'] ?? '').toString();
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _AddressTile(title: title, subtitle: subtitle),
+                );
+              })
+            else ...[
+              const _AddressTile(
+                title: '—',
+                subtitle: 'ยังไม่มีที่อยู่ตั้งค่าไว้',
+              ),
+            ],
           ],
         ),
       ),
 
-      // ปุ่มล่างสุด
+      // ปุ่มออกจากระบบ
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.all(18),
         child: SizedBox(
@@ -144,8 +220,9 @@ class ProfilePage extends StatelessWidget {
           child: GradientButton(
             text: 'ออกจากระบบ',
             onTap: () {
+              // เคลียร์ session/states ตามจริงก่อน (ถ้ามี)
               Get.snackbar('ออกจากระบบ', 'ทำการออกจากระบบแล้ว');
-              Get.to(() => LoginPages());
+              Get.offAll(() => const LoginPages());
             },
           ),
         ),
@@ -154,10 +231,8 @@ class ProfilePage extends StatelessWidget {
   }
 }
 
-/// การ์ดแสดงค่าข้อมูลอ่านอย่างเดียว (ซ้ายเป็น hint จาง ๆ ขวาเป็นค่า)
 class _ReadOnlyField extends StatelessWidget {
   const _ReadOnlyField({required this.hint, required this.value});
-
   final String hint;
   final String value;
 
@@ -201,10 +276,8 @@ class _ReadOnlyField extends StatelessWidget {
   }
 }
 
-/// การ์ดแถวที่อยู่ พร้อมลูกศร
 class _AddressTile extends StatelessWidget {
   const _AddressTile({required this.title, required this.subtitle});
-
   final String title;
   final String subtitle;
 
@@ -218,7 +291,6 @@ class _AddressTile extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: () {
-          // ดู/แก้ไขที่อยู่
           Get.snackbar('ที่อยู่', 'เปิดรายละเอียดที่อยู่');
         },
         child: Container(

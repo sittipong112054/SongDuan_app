@@ -1,5 +1,3 @@
-import 'dart:io' show File;
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -24,11 +22,6 @@ class ProfileHeader extends StatelessWidget {
   ImageProvider _resolveImageProvider() {
     final s = image.trim();
 
-    // 1) Full URL
-    if (s.startsWith('http://') || s.startsWith('https://')) {
-      return NetworkImage(s);
-    }
-
     // 2) Relative path จากเซิร์ฟเวอร์ เช่น /uploads/avatars/xxx.jpg
     if (s.startsWith('/')) {
       final b = (baseUrl ?? '').trimRight();
@@ -39,15 +32,6 @@ class ProfileHeader extends StatelessWidget {
       return const AssetImage('assets/images/default_avatar.png');
     }
 
-    // 3) ไฟล์โลคอล (มือถือ): file:///path หรือพาธไฟล์ดิบ
-    if (!kIsWeb &&
-        (s.startsWith('file://') || s.contains('/') || s.contains('\\'))) {
-      // หมายเหตุ: ไม่เช็ค existsSync เพื่อลด I/O ใน build
-      final path = s.startsWith('file://') ? s.replaceFirst('file://', '') : s;
-      return FileImage(File(path));
-    }
-
-    // 4) สุดท้ายถือว่าเป็น asset
     return AssetImage(s);
   }
 
