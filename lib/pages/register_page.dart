@@ -6,7 +6,6 @@ import 'package:songduan_app/models/register_payload.dart';
 import 'package:songduan_app/pages/member/add_profile_member_page.dart';
 import 'package:songduan_app/pages/rider/add_profile_rider_page.dart';
 import 'package:songduan_app/pages/login_page.dart';
-import 'package:songduan_app/pages/welcome_page.dart';
 
 import 'package:songduan_app/widgets/gradient_button.dart';
 import 'package:songduan_app/widgets/custom_text_field.dart';
@@ -18,9 +17,8 @@ class RegisterPage extends StatefulWidget {
   State<RegisterPage> createState() => _RegisterPageState();
 }
 
-// enum RegisterRole { member, rider }
-
 class _RegisterPageState extends State<RegisterPage> {
+  final _formKey = GlobalKey<FormState>();
   final _userCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
@@ -28,6 +26,8 @@ class _RegisterPageState extends State<RegisterPage> {
   RegisterRole _role = RegisterRole.member;
   bool _obscurePass = true;
   bool _obscureConfirm = true;
+  bool _loading = false;
+  bool _autovalidate = false;
 
   static const _bg = Color(0xFFF6EADB);
   static const _gold = Color(0xFFFF9C00);
@@ -41,163 +41,241 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
+  bool get _formValid => _formKey.currentState?.validate() ?? false;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         backgroundColor: _bg,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           color: _textDark.withOpacity(0.85),
-          onPressed: () => Get.to(() => WelcomePage()),
+          onPressed: () => Get.back(),
           splashRadius: 22,
         ),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 8),
-              Center(
-                child: SizedBox(
-                  width: 140,
-                  child: Image.asset(
-                    'assets/images/logo.png',
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Center(
-                child: Text(
-                  'Create New Account',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.nunitoSans(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: _textDark,
-                    shadows: [
-                      Shadow(
-                        color: Colors.black.withOpacity(0.15),
-                        offset: const Offset(0, 2),
-                        blurRadius: 6,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 120,
-                    child: _RoleChip(
-                      label: 'Member',
-                      selected: _role == RegisterRole.member,
-                      onTap: () => setState(() => _role = RegisterRole.member),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(
+            left: 22,
+            right: 22,
+            top: 12,
+            bottom: 12 + MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Form(
+            key: _formKey,
+            autovalidateMode: _autovalidate
+                ? AutovalidateMode.onUserInteraction
+                : AutovalidateMode.disabled,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 8),
+                Center(
+                  child: SizedBox(
+                    width: 140,
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      fit: BoxFit.contain,
                     ),
                   ),
-                  const SizedBox(width: 70),
-                  SizedBox(
-                    width: 120,
-                    child: _RoleChip(
-                      label: 'Rider',
-                      selected: _role == RegisterRole.rider,
-                      onTap: () => setState(() => _role = RegisterRole.rider),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 25),
-              CustomTextField(
-                hint: 'Username',
-                controller: _userCtrl,
-                keyboardType: TextInputType.text,
-                prefixIcon: const Icon(Icons.alternate_email_rounded, size: 28),
-              ),
-              const SizedBox(height: 14),
-              CustomTextField(
-                hint: 'Password',
-                controller: _passCtrl,
-                obscure: _obscurePass,
-                prefixIcon: const Icon(Icons.lock_rounded, size: 28),
-                suffixIcon: IconButton(
-                  onPressed: () => setState(() => _obscurePass = !_obscurePass),
-                  icon: Icon(
-                    _obscurePass
-                        ? Icons.visibility_rounded
-                        : Icons.visibility_off_rounded,
-                  ),
                 ),
-              ),
-              const SizedBox(height: 14),
-              CustomTextField(
-                hint: 'Confirm Password',
-                controller: _confirmCtrl,
-                obscure: _obscureConfirm,
-                prefixIcon: const Icon(Icons.lock_rounded, size: 28),
-                suffixIcon: IconButton(
-                  onPressed: () =>
-                      setState(() => _obscureConfirm = !_obscureConfirm),
-                  icon: Icon(
-                    _obscureConfirm
-                        ? Icons.visibility_rounded
-                        : Icons.visibility_off_rounded,
-                  ),
-                ),
-              ),
-              const Spacer(),
-              GradientButton(text: 'ถัดไป', onTap: _onNext),
-              const SizedBox(height: 64),
-              Center(
-                child: Text.rich(
-                  TextSpan(
+                const SizedBox(height: 16),
+                Center(
+                  child: Text(
+                    'Create New Account',
+                    textAlign: TextAlign.center,
                     style: GoogleFonts.nunitoSans(
-                      fontSize: 13.5,
-                      color: _textDark.withOpacity(0.6),
-                    ),
-                    children: [
-                      const TextSpan(text: 'Already have an account? '),
-                      TextSpan(
-                        text: 'Sign in',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          decoration: TextDecoration.underline,
-                          color: _gold,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: _textDark,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withOpacity(0.15),
+                          offset: const Offset(0, 2),
+                          blurRadius: 6,
                         ),
-                        recognizer: (TapGestureRecognizer()
-                          ..onTap = () {
-                            Get.to(() => LoginPages());
-                          }),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-            ],
+                const SizedBox(height: 18),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 120,
+                      child: _RoleChip(
+                        label: 'Member',
+                        selected: _role == RegisterRole.member,
+                        onTap: () =>
+                            setState(() => _role = RegisterRole.member),
+                      ),
+                    ),
+                    const SizedBox(width: 70),
+                    SizedBox(
+                      width: 120,
+                      child: _RoleChip(
+                        label: 'Rider',
+                        selected: _role == RegisterRole.rider,
+                        onTap: () => setState(() => _role = RegisterRole.rider),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 25),
+
+                // USERNAME
+                CustomTextField(
+                  hint: 'Username',
+                  controller: _userCtrl,
+                  keyboardType: TextInputType.text,
+                  textInputAction: TextInputAction.next,
+                  prefixIcon: const Icon(
+                    Icons.alternate_email_rounded,
+                    size: 28,
+                  ),
+                  autofillHints: const [AutofillHints.username],
+                  maxLength: 32,
+                  validator: (v) {
+                    final s = (v ?? '').trim();
+                    if (s.isEmpty) return 'กรอกชื่อผู้ใช้';
+                    if (s.length < 4) return 'ความยาวอย่างน้อย 4 ตัวอักษร';
+                    if (!RegExp(r'^[a-zA-Z0-9._-]+$').hasMatch(s)) {
+                      return 'ใช้ได้เฉพาะ a-z, 0-9, ., _, -';
+                    }
+                    return null;
+                  },
+                  onFieldSubmitted: (_) => FocusScope.of(context).nextFocus(),
+                  onChanged: (_) => setState(() {}), // อัปเดตปุ่ม enable
+                ),
+                const SizedBox(height: 14),
+
+                // PASSWORD
+                CustomTextField(
+                  hint: 'Password',
+                  controller: _passCtrl,
+                  obscure: _obscurePass,
+                  textInputAction: TextInputAction.next,
+                  prefixIcon: const Icon(Icons.lock_rounded, size: 28),
+                  suffixIcon: IconButton(
+                    onPressed: () =>
+                        setState(() => _obscurePass = !_obscurePass),
+                    icon: Icon(
+                      _obscurePass
+                          ? Icons.visibility_rounded
+                          : Icons.visibility_off_rounded,
+                    ),
+                  ),
+                  autofillHints: const [AutofillHints.newPassword],
+                  maxLength: 64,
+                  validator: (v) {
+                    final s = v ?? '';
+                    if (s.isEmpty) return 'กรอกรหัสผ่าน';
+                    if (s.length < 8) return 'ความยาวอย่างน้อย 8 ตัวอักษร';
+                    final hasLetter = RegExp(r'[A-Za-z]').hasMatch(s);
+                    final hasNumber = RegExp(r'\d').hasMatch(s);
+                    if (!hasLetter || !hasNumber)
+                      return 'ต้องมีทั้งตัวอักษรและตัวเลข';
+                    return null;
+                  },
+                  onFieldSubmitted: (_) => FocusScope.of(context).nextFocus(),
+                  onChanged: (_) => setState(() {}), // อัปเดตปุ่ม enable
+                ),
+                const SizedBox(height: 14),
+
+                // CONFIRM PASSWORD
+                CustomTextField(
+                  hint: 'Confirm Password',
+                  controller: _confirmCtrl,
+                  obscure: _obscureConfirm,
+                  textInputAction: TextInputAction.done,
+                  prefixIcon: const Icon(Icons.lock_rounded, size: 28),
+                  suffixIcon: IconButton(
+                    onPressed: () =>
+                        setState(() => _obscureConfirm = !_obscureConfirm),
+                    icon: Icon(
+                      _obscureConfirm
+                          ? Icons.visibility_rounded
+                          : Icons.visibility_off_rounded,
+                    ),
+                  ),
+                  validator: (v) {
+                    if ((v ?? '').isEmpty) return 'ยืนยันรหัสผ่านอีกครั้ง';
+                    if (v != _passCtrl.text) return 'รหัสผ่านไม่ตรงกัน';
+                    return null;
+                  },
+                  onFieldSubmitted: (_) => _handleNext(),
+                  onChanged: (_) => setState(() {}),
+                ),
+
+                const SizedBox(height: 24),
+
+                GradientButton(
+                  text: _loading ? 'กำลังตรวจสอบ...' : 'ถัดไป',
+                  onTap: _handleNext,
+                ),
+
+                const SizedBox(height: 32),
+
+                // ลิงก์เข้าสู่ระบบ (หลีกเลี่ยง TapGestureRecognizer ที่ต้อง dispose)
+                Center(
+                  child: Text.rich(
+                    TextSpan(
+                      style: GoogleFonts.nunitoSans(
+                        fontSize: 13.5,
+                        color: _textDark.withOpacity(0.6),
+                      ),
+                      children: [
+                        const TextSpan(text: 'Already have an account? '),
+                        TextSpan(
+                          text: 'Sign in',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            decoration: TextDecoration.underline,
+                            color: _gold,
+                          ),
+                          recognizer: (TapGestureRecognizer()
+                            ..onTap = () {
+                              Get.to(() => LoginPages());
+                            }),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  void _onNext() {
-    final payload = RegisterPayload(
-      username: _userCtrl.text.trim(),
-      password: _passCtrl.text, // อย่าลืม validate ว่าตรงกับ confirm
-      role: _role,
-    );
+  Future<void> _handleNext() async {
+    if (!_autovalidate) setState(() => _autovalidate = true);
+    if (!_formValid) return;
 
-    if (_role == RegisterRole.rider) {
-      Get.to(() => const RiderProfilePage(), arguments: payload);
-    } else {
-      Get.to(() => const MemberProfilePage(), arguments: payload);
+    setState(() => _loading = true);
+    try {
+      final payload = RegisterPayload(
+        username: _userCtrl.text.trim(),
+        password: _passCtrl.text,
+        role: _role,
+      );
+
+      if (_role == RegisterRole.rider) {
+        Get.to(() => const RiderProfilePage(), arguments: payload);
+      } else {
+        Get.to(() => const MemberProfilePage(), arguments: payload);
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 }
@@ -240,7 +318,7 @@ class _RoleChip extends StatelessWidget {
         alignment: Alignment.center,
         child: Text(
           label,
-          style: GoogleFonts.nunitoSans(
+          style: GoogleFonts.notoSansThai(
             color: fg,
             fontSize: 14.5,
             fontWeight: FontWeight.w900,

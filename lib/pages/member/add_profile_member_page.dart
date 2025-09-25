@@ -1,14 +1,23 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-
+import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:path/path.dart' as p;
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart'; // ใช้อันนี้สำหรับ MediaType
+import 'package:mime/mime.dart';
+import 'package:songduan_app/config/config.dart';
+
+import 'package:songduan_app/models/register_payload.dart';
+import 'package:songduan_app/pages/login_page.dart';
 import 'package:songduan_app/pages/member/map_page.dart';
-import 'package:songduan_app/pages/rider/rider_home_page.dart';
 
 import 'package:songduan_app/widgets/gradient_button.dart';
 import 'package:songduan_app/widgets/custom_text_field.dart';
@@ -21,6 +30,8 @@ class MemberProfilePage extends StatefulWidget {
 }
 
 class _MemberProfilePageState extends State<MemberProfilePage> {
+  late final RegisterPayload base;
+
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _placeNameCtrl = TextEditingController();
@@ -34,10 +45,20 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
   final MapController mapController = MapController();
   LatLng latLng = LatLng(16.246373, 103.251827);
 
+  final _formKey = GlobalKey<FormState>();
+  bool _submitting = false;
+
   static const _bg = Color(0xFFF6EADB);
-  // static const _textDark = Color(0xFF2F2F2F);
   static const _orange = Color(0xFFEA4335);
   static const _gold = Color(0xFFFF9C00);
+
+  String _baseUrl = '';
+
+  @override
+  void initState() {
+    super.initState();
+    base = Get.arguments as RegisterPayload;
+  }
 
   @override
   void dispose() {
@@ -82,159 +103,179 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 6),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 6),
 
-              // Avatar + edit
-              Center(
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    CircleAvatar(
-                      radius: 78,
-                      backgroundColor: Color(0xFFF0F2F5),
-                      child: ClipOval(
-                        child: SizedBox(
-                          width: 148,
-                          height: 148,
-                          child: _avatarFile != null
-                              ? Image.file(_avatarFile!, fit: BoxFit.cover)
-                              : Center(
-                                  child: Text(
-                                    'Add\nPhoto',
-                                    textAlign: TextAlign.center,
-                                    style: GoogleFonts.notoSansThai(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.black.withOpacity(0.4),
+                // Avatar + edit
+                Center(
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      CircleAvatar(
+                        radius: 78,
+                        backgroundColor: const Color(0xFFF0F2F5),
+                        child: ClipOval(
+                          child: SizedBox(
+                            width: 148,
+                            height: 148,
+                            child: _avatarFile != null
+                                ? Image.file(_avatarFile!, fit: BoxFit.cover)
+                                : Center(
+                                    child: Text(
+                                      'Add\nPhoto',
+                                      textAlign: TextAlign.center,
+                                      style: GoogleFonts.notoSansThai(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.black.withOpacity(0.4),
+                                      ),
                                     ),
                                   ),
-                                ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      right: -2,
-                      bottom: -2,
-                      child: GestureDetector(
-                        onTap: _pickAvatar,
-                        child: Container(
-                          width: 30,
-                          height: 30,
-                          decoration: BoxDecoration(
-                            color: Colors.black,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                          child: const Icon(
-                            Icons.edit,
-                            color: Colors.white,
-                            size: 16,
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 22),
-
-              _SectionTitle('ข้อมูลติดต่อ'),
-              const SizedBox(height: 8),
-
-              CustomTextField(
-                hint: 'ชื่อ',
-                controller: _nameCtrl,
-                keyboardType: TextInputType.name,
-                prefixIcon: const Icon(Icons.person_rounded, size: 28),
-              ),
-              const SizedBox(height: 12),
-
-              CustomTextField(
-                hint: 'เบอร์โทร',
-                controller: _phoneCtrl,
-                keyboardType: TextInputType.phone,
-                prefixIcon: const Icon(Icons.call_rounded, size: 28),
-              ),
-
-              const SizedBox(height: 18),
-
-              _SectionTitle('ข้อมูลที่อยู่'),
-              const SizedBox(height: 8),
-
-              CustomTextField(
-                hint: 'ชื่อที่อยู่, ที่ทำงาน',
-                controller: _placeNameCtrl,
-                keyboardType: TextInputType.text,
-                prefixIcon: const Icon(Icons.home, size: 28),
-              ),
-              const SizedBox(height: 8),
-
-              CustomTextField(
-                hint: 'บ้านเลขที่ หมู่บ้าน ตำบล อำเภอ จังหวัด ประเทศ',
-                controller: _addressNameCtrl,
-                keyboardType: TextInputType.text,
-                prefixIcon: const Icon(Icons.map, size: 28),
-              ),
-              const SizedBox(height: 8),
-
-              _PickFromMapTile(onTap: _goPickOnMap),
-              const SizedBox(height: 10),
-
-              if (_selectedAddress != null) ...[
-                SizedBox(
-                  height: 200,
-                  child: IgnorePointer(
-                    // หรือ AbsorbPointer()
-                    child: FlutterMap(
-                      mapController: mapController,
-                      options: MapOptions(
-                        initialCenter: latLng,
-                        initialZoom: 15.2,
-                      ),
-                      children: [
-                        TileLayer(
-                          urlTemplate:
-                              'https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=0b03b55da9a64adab5790c1c9515b15a',
-                          userAgentPackageName: 'net.gonggang.osm_demo',
-                        ),
-                        MarkerLayer(
-                          markers: [
-                            Marker(
-                              point: latLng,
-                              child: const Icon(
-                                Icons.location_on,
-                                color: Colors.red,
-                              ),
+                      Positioned(
+                        right: -2,
+                        bottom: -2,
+                        child: GestureDetector(
+                          onTap: _pickAvatar,
+                          child: Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.white, width: 2),
                             ),
-                          ],
+                            child: const Icon(
+                              Icons.edit,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                ),
+
+                const SizedBox(height: 22),
+
+                const _SectionTitle('ข้อมูลติดต่อ'),
+                const SizedBox(height: 8),
+
+                CustomTextField(
+                  hint: 'ชื่อ',
+                  controller: _nameCtrl,
+                  prefixIcon: const Icon(Icons.person_rounded, size: 28),
+                  validator: (v) =>
+                      (v ?? '').trim().isEmpty ? 'กรอกชื่อ' : null,
                 ),
 
                 const SizedBox(height: 8),
-                Text(
-                  _selectedAddress!,
-                  style: GoogleFonts.notoSansThai(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black.withOpacity(0.7),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 18),
-              SizedBox(
-                height: 56,
-                child: GradientButton(text: 'ลงทะเบียน', onTap: _onSubmit),
-              ),
 
-              const SizedBox(height: 16),
-            ],
+                CustomTextField(
+                  hint: 'เบอร์โทร',
+                  controller: _phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  prefixIcon: const Icon(Icons.call_rounded, size: 28),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10),
+                  ],
+                  validator: (v) {
+                    final s = (v ?? '').trim();
+                    // ตัวอย่างรูปแบบเบอร์ไทย 10 หลักขึ้นต้น 0
+                    return RegExp(r'^0\d{9}$').hasMatch(s)
+                        ? null
+                        : 'รูปแบบเบอร์ไม่ถูกต้อง';
+                  },
+                ),
+
+                const SizedBox(height: 18),
+
+                const _SectionTitle('ข้อมูลที่อยู่'),
+                const SizedBox(height: 8),
+
+                CustomTextField(
+                  hint: 'ชื่อที่อยู่, ที่ทำงาน',
+                  controller: _placeNameCtrl,
+                  keyboardType: TextInputType.text,
+                  prefixIcon: const Icon(Icons.home, size: 28),
+                  validator: (v) =>
+                      (v ?? '').trim().isEmpty ? 'กรอกชื่อที่อยู่' : null,
+                ),
+                const SizedBox(height: 8),
+
+                CustomTextField(
+                  hint: 'บ้านเลขที่ หมู่บ้าน ตำบล อำเภอ จังหวัด ประเทศ',
+                  controller: _addressNameCtrl,
+                  keyboardType: TextInputType.text,
+                  prefixIcon: const Icon(Icons.map, size: 28),
+                  validator: (v) =>
+                      (v ?? '').trim().isEmpty ? 'กรอกรายละเอียดที่อยู่' : null,
+                ),
+                const SizedBox(height: 8),
+
+                _PickFromMapTile(onTap: _goPickOnMap),
+                const SizedBox(height: 10),
+
+                if (_selectedAddress != null) ...[
+                  SizedBox(
+                    height: 200,
+                    child: IgnorePointer(
+                      child: FlutterMap(
+                        mapController: mapController,
+                        options: MapOptions(
+                          initialCenter: latLng,
+                          initialZoom: 15.2,
+                        ),
+                        children: [
+                          TileLayer(
+                            urlTemplate:
+                                'https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=0b03b55da9a64adab5790c1c9515b15a',
+                            userAgentPackageName: 'net.gonggang.osm_demo',
+                          ),
+                          MarkerLayer(
+                            markers: [
+                              Marker(
+                                point: latLng,
+                                child: const Icon(
+                                  Icons.location_on,
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _selectedAddress!,
+                    style: GoogleFonts.notoSansThai(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 18),
+
+                GradientButton(
+                  text: _submitting ? 'กำลังลงทะเบียน...' : 'ลงทะเบียน',
+                  onTap: _onSubmit,
+                ),
+
+                const SizedBox(height: 16),
+              ],
+            ),
           ),
         ),
       ),
@@ -256,18 +297,146 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
         }
       });
 
-      // สำคัญ: initialCenter ใช้แค่ครั้งแรก ต้อง move ด้วย controller
       mapController.move(picked, 16.0);
     }
   }
 
-  Future<void> _pickAvatar() async {
-    final x = await _picker.pickImage(source: ImageSource.gallery);
-    if (x != null) setState(() => _avatarFile = File(x.path));
+  Future<File?> _compressImage(File file) async {
+    try {
+      final bytes = await file.readAsBytes();
+      final decoded = img.decodeImage(bytes);
+      if (decoded == null) return file;
+      final out = File('${file.path}_c.jpg');
+      await out.writeAsBytes(img.encodeJpg(decoded, quality: 80));
+      return out;
+    } catch (_) {
+      return file; // ถ้าบีบอัดพัง ให้ใช้ไฟล์เดิม
+    }
   }
 
-  void _onSubmit() {
-    Get.to(() => RiderHomePage());
+  Future<void> _pickAvatar() async {
+    final x = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    ); // ลดบน device
+    if (x != null) {
+      var f = File(x.path);
+      f = await _compressImage(f) ?? f;
+      if (!mounted) return;
+      setState(() => _avatarFile = f);
+    }
+  }
+
+  Future<void> _onSubmit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    if (_selectedAddress == null) {
+      Get.snackbar(
+        'ที่อยู่',
+        'กรุณาเลือกตำแหน่งจากแผนที่',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    if (_avatarFile == null) {
+      Get.snackbar(
+        'รูปโปรไฟล์',
+        'กรุณาเลือกรูปภาพโปรไฟล์',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    setState(() => _submitting = true);
+    var config = await Configuration.getConfig();
+    _baseUrl = config['apiEndpoint'];
+    try {
+      final uri = Uri.parse('$_baseUrl/users/members');
+      final request = http.MultipartRequest('POST', uri);
+
+      request.fields.addAll({
+        'username': base.username,
+        'password': base.password,
+        'role': 'MEMBER',
+        'name': _nameCtrl.text.trim(),
+        'phone': _phoneCtrl.text.trim(),
+        'placeName': _placeNameCtrl.text.trim(),
+        'address': _addressNameCtrl.text.trim(),
+        'lat': latLng.latitude.toString(),
+        'lng': latLng.longitude.toString(),
+      });
+
+      if (_avatarFile != null) {
+        final file = _avatarFile!;
+        final fileName = p.basename(file.path);
+        final mime = lookupMimeType(file.path) ?? 'image/jpeg';
+        final parts = mime.split('/'); // ["image","jpeg"]
+
+        final stream = http.ByteStream(file.openRead());
+        final length = await file.length();
+
+        request.files.add(
+          http.MultipartFile(
+            'avatarFile', // ต้องตรงกับ backend
+            stream,
+            length,
+            filename: fileName,
+            contentType: MediaType(parts[0], parts[1]), // <-- จาก http_parser
+          ),
+        );
+      }
+
+      // request.headers['Authorization'] = 'Bearer ...'; // ถ้ามี
+
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 30),
+      );
+      final resp = await http.Response.fromStream(streamed);
+
+      Map<String, dynamic> body;
+      try {
+        body = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+      } catch (_) {
+        throw Exception(
+          'Invalid response: ${resp.statusCode} ${resp.reasonPhrase}',
+        );
+      }
+
+      if (resp.statusCode == 201) {
+        Get.snackbar(
+          'สำเร็จ',
+          'สมัครสมาชิกเรียบร้อย',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+
+        _nameCtrl.clear();
+        _phoneCtrl.clear();
+        _placeNameCtrl.clear();
+        _addressNameCtrl.clear();
+
+        Get.offAll(
+          () => const LoginPages(),
+          arguments: {'username': base.username},
+          transition: Transition.fadeIn,
+          duration: const Duration(milliseconds: 220),
+        );
+
+        return;
+      }
+
+      final err = body['error'];
+      if (err is Map && err['message'] is String) {
+        throw Exception(
+          '[${err['code'] ?? resp.statusCode}] ${err['message']}',
+        );
+      }
+      throw Exception('HTTP ${resp.statusCode}: ${resp.reasonPhrase}');
+    } catch (e) {
+      Get.snackbar('เกิดข้อผิดพลาด', '$e', snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class CustomTextField extends StatelessWidget {
@@ -10,6 +11,14 @@ class CustomTextField extends StatelessWidget {
     this.prefixIcon,
     this.suffixIcon,
     this.keyboardType = TextInputType.text,
+    this.validator,
+    this.enabled = true,
+    this.onChanged,
+    this.textInputAction,
+    this.onFieldSubmitted,
+    this.autofillHints,
+    this.inputFormatters,
+    this.maxLength,
   });
 
   final String hint;
@@ -18,6 +27,15 @@ class CustomTextField extends StatelessWidget {
   final Widget? prefixIcon;
   final Widget? suffixIcon;
   final TextInputType keyboardType;
+
+  final String? Function(String?)? validator;
+  final bool enabled;
+  final ValueChanged<String>? onChanged;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onFieldSubmitted;
+  final Iterable<String>? autofillHints;
+  final List<TextInputFormatter>? inputFormatters;
+  final int? maxLength;
 
   static const _fillColor = Color(0xFFF0F2F5);
 
@@ -36,12 +54,21 @@ class CustomTextField extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(14),
-        child: TextField(
+        child: TextFormField(
           controller: controller,
           keyboardType: keyboardType,
           obscureText: obscure,
+          enabled: enabled,
           style: GoogleFonts.notoSansThai(fontSize: 16),
+          validator: validator,
+          onChanged: onChanged,
+          textInputAction: textInputAction,
+          onFieldSubmitted: onFieldSubmitted,
+          autofillHints: autofillHints,
+          inputFormatters: inputFormatters,
+          maxLength: maxLength,
           decoration: InputDecoration(
+            counterText: '', // ซ่อนตัวเลขนับถ้าใช้ maxLength
             hintText: hint,
             prefixIcon: prefixIcon,
             suffixIcon: suffixIcon,
@@ -63,6 +90,12 @@ class CustomTextField extends StatelessWidget {
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide.none,
+            ),
+            errorStyle: GoogleFonts.notoSansThai(
+              fontSize: 12.5,
+              color: Colors.red.shade700,
+              height: 1.1,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),

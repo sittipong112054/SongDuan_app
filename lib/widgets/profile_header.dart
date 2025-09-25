@@ -1,3 +1,5 @@
+import 'dart:io' show File;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -7,24 +9,58 @@ class ProfileHeader extends StatelessWidget {
     required this.name,
     required this.role,
     required this.image,
+    this.baseUrl,
     this.onMorePressed,
   });
 
   final String name;
   final String role;
   final String image;
+  final String? baseUrl;
   final VoidCallback? onMorePressed;
 
   static const _textDark = Color(0xFF2F2F2F);
 
+  ImageProvider _resolveImageProvider() {
+    final s = image.trim();
+
+    // 1) Full URL
+    if (s.startsWith('http://') || s.startsWith('https://')) {
+      return NetworkImage(s);
+    }
+
+    // 2) Relative path จากเซิร์ฟเวอร์ เช่น /uploads/avatars/xxx.jpg
+    if (s.startsWith('/')) {
+      final b = (baseUrl ?? '').trimRight();
+      if (b.isNotEmpty) {
+        return NetworkImage('$b$s');
+      }
+      // ไม่มี baseUrl ก็ fallback เป็น Asset เพื่อไม่ให้แครช
+      return const AssetImage('assets/images/default_avatar.png');
+    }
+
+    // 3) ไฟล์โลคอล (มือถือ): file:///path หรือพาธไฟล์ดิบ
+    if (!kIsWeb &&
+        (s.startsWith('file://') || s.contains('/') || s.contains('\\'))) {
+      // หมายเหตุ: ไม่เช็ค existsSync เพื่อลด I/O ใน build
+      final path = s.startsWith('file://') ? s.replaceFirst('file://', '') : s;
+      return FileImage(File(path));
+    }
+
+    // 4) สุดท้ายถือว่าเป็น asset
+    return AssetImage(s);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final provider = _resolveImageProvider();
+
     return Row(
       children: [
         CircleAvatar(
           radius: 26,
           backgroundColor: Colors.grey.shade300,
-          backgroundImage: AssetImage(image),
+          backgroundImage: provider,
         ),
         const SizedBox(width: 12),
         Column(
