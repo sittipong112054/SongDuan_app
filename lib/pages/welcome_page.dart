@@ -20,25 +20,20 @@ class _WelcomePageState extends State<WelcomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final kb = MediaQuery.of(
-      context,
-    ).viewInsets.bottom; // ความสูงคีย์บอร์ด (0 ถ้าไม่เปิด)
+    final kb = MediaQuery.of(context).viewInsets.bottom;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF1DB),
-      // ให้ body “หด/ขยับ” เมื่อคีย์บอร์ดเปิด โดยไม่ต้องเลื่อนจอ
       resizeToAvoidBottomInset: true,
       body: AnimatedPadding(
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOut,
-        // ดันทั้งหน้าขึ้นตามคีย์บอร์ด แต่ยังเป็น static layout
         padding: EdgeInsets.only(bottom: kb),
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
               children: [
-                // ใช้ Spacer/Expanded แทน Scroll: จอจะจัดสัดส่วนเองเวลาถูกดัน
                 const SizedBox(height: 150),
                 Container(
                   width: 180,
@@ -60,7 +55,6 @@ class _WelcomePageState extends State<WelcomePage> {
                   ),
                 ),
                 const SizedBox(height: 28),
-                // หัวข้อ 2 ชั้น (stroke + fill)
                 Stack(
                   children: [
                     Text(
@@ -106,8 +100,6 @@ class _WelcomePageState extends State<WelcomePage> {
                   ),
                 ),
                 const Spacer(),
-
-                // ปุ่ม “อยู่ในฟลูว์” ไม่ลอย ไม่ใช่ bottom bar
                 SizedBox(
                   width: double.infinity,
                   height: 64,
@@ -152,7 +144,6 @@ class _WelcomePageState extends State<WelcomePage> {
                 GradientButton(text: 'ลงทะเบียน', onTap: _onRegister),
                 const SizedBox(height: 60),
 
-                // แก้ TapGestureRecognizer ให้ปลอดภัย: ใช้ Stateful + dispose
                 _TermsRichText(
                   onTapTerms: _openTerms,
                   onTapPrivacy: _openPrivacy,
@@ -170,19 +161,22 @@ class _WelcomePageState extends State<WelcomePage> {
   void _onRegister() => Get.to(() => const RegisterPage());
 
   void _openTerms() {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('เปิด “ข้อกำหนดและเงื่อนไข”')));
+    Get.snackbar(
+      'เปิด',
+      'ข้อกำหนดและเงื่อนไข',
+      snackPosition: SnackPosition.BOTTOM,
+    );
   }
 
   void _openPrivacy() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('เปิด “นโยบายความเป็นส่วนตัว”')),
+    Get.snackbar(
+      'เปิด',
+      'นโยบายความเป็นส่วนตัว',
+      snackPosition: SnackPosition.BOTTOM,
     );
   }
 }
 
-// ✅ ทำให้ปลอดภัย: จัดการอายุการใช้งานของ TapGestureRecognizer
 class _TermsRichText extends StatefulWidget {
   const _TermsRichText({required this.onTapTerms, required this.onTapPrivacy});
 
