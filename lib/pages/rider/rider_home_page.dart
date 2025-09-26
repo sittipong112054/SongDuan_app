@@ -113,7 +113,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
                   to: 'หอมีชัยแมนชั่น',
                   distanceText: 'ระยะทาง 0.9 km.',
                   imagePath: null,
-                  status: OrderStatus.waitingPickup,
+                  status: OrderStatus.riderAccepted,
                   onDetail: () {
                     Get.to(
                       () => OrderDetailPage(

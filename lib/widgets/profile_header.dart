@@ -29,7 +29,7 @@ class ProfileHeader extends StatelessWidget {
         return NetworkImage('$b$s');
       }
       // ไม่มี baseUrl ก็ fallback เป็น Asset เพื่อไม่ให้แครช
-      return const AssetImage('assets/images/default_avatar.png');
+      return const AssetImage('assets/images/johncena.png');
     }
 
     return AssetImage(s);

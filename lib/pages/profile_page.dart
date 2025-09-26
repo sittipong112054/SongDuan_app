@@ -15,6 +15,8 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   static const _textDark = Color(0xFF2F2F2F);
+  static const _orange = Color(0xFFEA4335);
+  static const _gold = Color(0xFFFF9C00);
   String? _baseUrl;
 
   late final Map<String, dynamic> user;
@@ -90,17 +92,26 @@ class _ProfilePageState extends State<ProfilePage> {
         title: Text(
           'Profile',
           style: GoogleFonts.nunitoSans(
-            color: _textDark,
+            color: Colors.white,
             fontSize: 18,
             fontWeight: FontWeight.w900,
           ),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          color: _textDark,
+          color: Colors.white,
           onPressed: () => Get.back(),
         ),
-        backgroundColor: Colors.white,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [_orange, _gold],
+            ),
+          ),
+        ),
+        backgroundColor: _orange,
       ),
       backgroundColor: Colors.white,
 
@@ -108,7 +119,6 @@ class _ProfilePageState extends State<ProfilePage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
           children: [
-            // Avatar + name + role (ใช้รูปจริง)
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [

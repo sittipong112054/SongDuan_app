@@ -54,7 +54,7 @@ class OrderDetailPage extends StatelessWidget {
               sender: sender,
               receiver: receiver,
               status: status,
-              showStatus: false,
+              showStatus: true,
             ),
 
             const SizedBox(height: 22),
