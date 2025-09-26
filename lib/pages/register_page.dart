@@ -188,7 +188,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
                 const SizedBox(height: 14),
 
-                // CONFIRM PASSWORD
                 CustomTextField(
                   hint: 'Confirm Password',
                   controller: _confirmCtrl,
@@ -222,7 +221,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
                 const SizedBox(height: 32),
 
-                // ลิงก์เข้าสู่ระบบ (หลีกเลี่ยง TapGestureRecognizer ที่ต้อง dispose)
                 Center(
                   child: Text.rich(
                     TextSpan(

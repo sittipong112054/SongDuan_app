@@ -43,7 +43,7 @@ class _AddLocationPageState extends State<AddLocationPage> {
         elevation: 0,
         centerTitle: false,
         title: Text(
-          'ที่อยู่',
+          'เพิ่มที่อยู่',
           style: GoogleFonts.notoSansThai(
             color: Colors.white,
             fontSize: 18,
@@ -122,18 +122,15 @@ class _AddLocationPageState extends State<AddLocationPage> {
                 ),
               ),
               const SizedBox(height: 18),
-
-              // ระบุโน้ต
-              _SectionTitle('ระบุโน้ต'),
-              const SizedBox(height: 8),
-              _NoteBox(controller: _noteCtrl),
-
               const SizedBox(height: 28),
 
               // ปุ่มลงทะเบียน
               SizedBox(
                 height: 56,
-                child: GradientButton(text: 'ลงทะเบียน', onTap: _submit),
+                child: GradientButton(
+                  text: 'ยืนยันเพิ่มที่อยู่',
+                  onTap: _submit,
+                ),
               ),
               const SizedBox(height: 8),
             ],
@@ -227,45 +224,6 @@ class _PickFromMapTile extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _NoteBox extends StatelessWidget {
-  const _NoteBox({required this.controller});
-  final TextEditingController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 130,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0F2F5),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.12),
-            offset: const Offset(0, 6),
-            blurRadius: 10,
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      child: TextField(
-        controller: controller,
-        maxLines: null,
-        expands: true,
-        textAlignVertical: TextAlignVertical.top,
-        decoration: InputDecoration(
-          hintText: 'ตัวอย่าง รั้วสีขาว หลังคาสีส้ม',
-          hintStyle: GoogleFonts.notoSansThai(
-            color: Colors.black.withOpacity(0.28),
-            fontWeight: FontWeight.w700,
-          ),
-          border: InputBorder.none,
-        ),
-        style: GoogleFonts.notoSansThai(fontSize: 16),
       ),
     );
   }
