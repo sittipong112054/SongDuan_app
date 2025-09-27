@@ -36,7 +36,6 @@ class _MapPickPageState extends State<MapPickPage> {
     _initLocation();
   }
 
-  // -------------- GPS init --------------
   Future<void> _initLocation() async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -74,7 +73,6 @@ class _MapPickPageState extends State<MapPickPage> {
     }
   }
 
-  // -------------- Reverse geocoding เมื่อผู้ใช้แตะ --------------
   Future<void> _reverseGeocode(LatLng point) async {
     try {
       final placemarks = await gc.placemarkFromCoordinates(
@@ -102,7 +100,6 @@ class _MapPickPageState extends State<MapPickPage> {
     }
   }
 
-  // -------------- Forward geocoding จากช่องค้นหา --------------
   Future<void> _searchAddress() async {
     final query = _searchCtrl.text.trim();
     if (query.isEmpty) return;
@@ -116,11 +113,9 @@ class _MapPickPageState extends State<MapPickPage> {
         setState(() {
           _picked = dest;
         });
-        // แปลงเป็นที่อยู่ให้อ่านง่าย
         await _reverseGeocode(dest);
       }
     } catch (e) {
-      // สะกิดผู้ใช้แบบเบา ๆ
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('หาไม่เจอ ลองพิมพ์ให้เฉพาะเจาะจงขึ้นหน่อยค่ะ')),
@@ -128,7 +123,6 @@ class _MapPickPageState extends State<MapPickPage> {
     }
   }
 
-  // ปุ่มพากล้องกลับมายังตำแหน่งฉัน
   Future<void> _goToMyLocation() async {
     try {
       final pos = await Geolocator.getCurrentPosition(
@@ -140,9 +134,7 @@ class _MapPickPageState extends State<MapPickPage> {
         _picked = me;
       });
       await _reverseGeocode(me);
-    } catch (_) {
-      // เงียบ ๆ ก็ได้
-    }
+    } catch (_) {}
   }
 
   @override
@@ -158,7 +150,7 @@ class _MapPickPageState extends State<MapPickPage> {
               onTap: (tapPosition, point) async {
                 setState(() {
                   _picked = point;
-                  _pickedAddress = null; // เคลียร์ก่อนค่อยโหลดใหม่
+                  _pickedAddress = null;
                 });
                 await _reverseGeocode(point);
               },
@@ -187,7 +179,6 @@ class _MapPickPageState extends State<MapPickPage> {
             ],
           ),
 
-          // Search bar + back + my location
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -269,7 +260,6 @@ class _MapPickPageState extends State<MapPickPage> {
             ),
           ),
 
-          // Bottom sheet แสดงผลลัพธ์
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
@@ -335,7 +325,6 @@ class _MapPickPageState extends State<MapPickPage> {
                       text: 'ยืนยันที่อยู่จัดส่ง',
                       onTap: () {
                         if (_picked != null) {
-                          // ส่งทั้งพิกัดและที่อยู่กลับ
                           Get.back(
                             result: {
                               'latlng': _picked,

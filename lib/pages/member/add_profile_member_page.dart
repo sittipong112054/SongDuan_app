@@ -255,15 +255,15 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _selectedAddress!,
-                    style: GoogleFonts.notoSansThai(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black.withOpacity(0.7),
-                    ),
-                  ),
+                  // const SizedBox(height: 8),
+                  // Text(
+                  //   _selectedAddress!,
+                  //   style: GoogleFonts.notoSansThai(
+                  //     fontSize: 14,
+                  //     fontWeight: FontWeight.w700,
+                  //     color: Colors.black.withOpacity(0.7),
+                  //   ),
+                  // ),
                 ],
 
                 const SizedBox(height: 18),

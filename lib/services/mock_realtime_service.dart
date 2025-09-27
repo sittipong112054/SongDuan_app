@@ -1,32 +1,38 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:latlong2/latlong.dart';
+import 'package:songduan_app/widgets/order_card.dart' show OrderStatus;
 
 class MockRealtimeService {
   final _random = Random();
 
-  // สตรีมตำแหน่งไรเดอร์หลายคน (สำหรับ “หลายชิ้น/หลายไรเดอร์”)
+  // สตรีมตำแหน่งไรเดอร์หลายคน (สำหรับแผนที่รวม)
   Stream<List<LatLng>> ridersStream({int count = 3, LatLng? center}) async* {
-    final c = center ?? LatLng(13.7563, 100.5018);
-    var points = List.generate(count, (_) => jitter(c));
+    final c = center ?? const LatLng(13.7563, 100.5018);
+    var points = List.generate(count, (_) => _jitter(c));
     while (true) {
       await Future.delayed(const Duration(seconds: 2));
-      points = points.map((p) => jitter(p)).toList();
+      points = points.map((p) => _jitter(p)).toList();
       yield points;
     }
   }
 
-  // สตรีมสถานะออเดอร์สลับ 1→2→3→3→… (เดโม่)
-  Stream<int> orderStatusStream() async* {
-    int s = 1;
+  // สตรีมสถานะออเดอร์: 1→2→3→4→4…
+  Stream<OrderStatus> orderStatusStream() async* {
+    var s = OrderStatus.waitingPickup;
     while (true) {
       await Future.delayed(const Duration(seconds: 4));
-      s = s == 1 ? 2 : (s == 2 ? 3 : 3);
+      s = switch (s) {
+        OrderStatus.waitingPickup => OrderStatus.riderAccepted,
+        OrderStatus.riderAccepted => OrderStatus.delivering,
+        OrderStatus.delivering => OrderStatus.delivered,
+        OrderStatus.delivered => OrderStatus.delivered,
+      };
       yield s;
     }
   }
 
-  LatLng jitter(LatLng p) {
+  LatLng _jitter(LatLng p) {
     final dLat = (_random.nextDouble() - 0.5) * 0.002;
     final dLng = (_random.nextDouble() - 0.5) * 0.002;
     return LatLng(p.latitude + dLat, p.longitude + dLng);

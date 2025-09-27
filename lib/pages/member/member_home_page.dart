@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
@@ -8,7 +9,6 @@ import 'package:songduan_app/pages/profile_page.dart';
 import 'package:songduan_app/widgets/profile_header.dart';
 import 'package:songduan_app/widgets/Tab_Button.dart';
 
-// pages แยกไฟล์
 import 'package:songduan_app/pages/member/sender/sender_create_page.dart';
 import 'package:songduan_app/pages/member/sender/sender_map_page.dart';
 import 'package:songduan_app/pages/member/sender/sender_list_page.dart';
@@ -25,8 +25,8 @@ class MemberHomePage extends StatefulWidget {
 class _MemberHomePageState extends State<MemberHomePage> {
   bool _isSender = true;
 
-  int _senderIndex = 0; // 0: สร้าง, 1: แผนที่, 2: รายการ
-  int _receiverIndex = 0; // 0: แผนที่, 1: รายการ
+  int _senderIndex = 0;
+  int _receiverIndex = 0;
 
   String? _baseUrl;
   String? _cfgError;
@@ -37,7 +37,7 @@ class _MemberHomePageState extends State<MemberHomePage> {
   late final String _roleLabel;
 
   final MapController mapController = MapController();
-  final LatLng sampleCenter = LatLng(13.7563, 100.5018); // กทม. เป็นค่า default
+  final LatLng sampleCenter = LatLng(13.7563, 100.5018);
 
   int get _currentIndex => _isSender ? _senderIndex : _receiverIndex;
   set _currentIndex(int idx) {
@@ -120,7 +120,6 @@ class _MemberHomePageState extends State<MemberHomePage> {
       body: SafeArea(
         child: Column(
           children: [
-            // ===== Header คงที่ทุกหน้า =====
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
               child: ProfileHeader(
@@ -136,7 +135,6 @@ class _MemberHomePageState extends State<MemberHomePage> {
             ),
             const SizedBox(height: 12),
 
-            // ===== TabButton คงที่ทุกหน้า =====
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 18),
               child: Row(
@@ -172,19 +170,18 @@ class _MemberHomePageState extends State<MemberHomePage> {
             ),
             const SizedBox(height: 8),
 
-            // ===== เนื้อหาสลับหน้า ด้วย IndexedStack =====
             Expanded(
               child: IndexedStack(
                 index: _currentIndex,
                 children: _isSender
                     ? [
-                        SenderCreatePage(baseUrl: _baseUrl!), // 0
-                        SenderMapPage(baseUrl: _baseUrl!), // 1
-                        SenderListPage(baseUrl: _baseUrl!), // 2
+                        SenderCreatePage(baseUrl: _baseUrl!),
+                        SenderMapPage(baseUrl: _baseUrl!),
+                        SenderListPage(baseUrl: _baseUrl!),
                       ]
                     : [
-                        ReceiverMapPage(baseUrl: _baseUrl!), // 0
-                        ReceiverListPage(baseUrl: _baseUrl!), // 1
+                        ReceiverMapPage(baseUrl: _baseUrl!),
+                        ReceiverListPage(baseUrl: _baseUrl!),
                       ],
               ),
             ),
@@ -192,7 +189,6 @@ class _MemberHomePageState extends State<MemberHomePage> {
         ),
       ),
 
-      // ===== Bottom Nav ตามโหมด =====
       bottomNavigationBar: BottomNavigationBar(
         items: items,
         currentIndex: _currentIndex.clamp(0, items.length - 1),
