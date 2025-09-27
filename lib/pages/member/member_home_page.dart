@@ -5,9 +5,15 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:songduan_app/config/config.dart';
 import 'package:songduan_app/pages/profile_page.dart';
-import 'package:songduan_app/widgets/Tab_Button.dart';
-import 'package:songduan_app/widgets/gradient_button.dart';
 import 'package:songduan_app/widgets/profile_header.dart';
+import 'package:songduan_app/widgets/Tab_Button.dart';
+
+// pages แยกไฟล์
+import 'package:songduan_app/pages/member/sender/sender_create_page.dart';
+import 'package:songduan_app/pages/member/sender/sender_map_page.dart';
+import 'package:songduan_app/pages/member/sender/sender_list_page.dart';
+import 'package:songduan_app/pages/member/receiver/receiver_map_page.dart';
+import 'package:songduan_app/pages/member/receiver/receiver_list_page.dart';
 
 class MemberHomePage extends StatefulWidget {
   const MemberHomePage({super.key});
@@ -19,6 +25,9 @@ class MemberHomePage extends StatefulWidget {
 class _MemberHomePageState extends State<MemberHomePage> {
   bool _isSender = true;
 
+  int _senderIndex = 0; // 0: สร้าง, 1: แผนที่, 2: รายการ
+  int _receiverIndex = 0; // 0: แผนที่, 1: รายการ
+
   String? _baseUrl;
   String? _cfgError;
   bool _loadingCfg = true;
@@ -28,7 +37,30 @@ class _MemberHomePageState extends State<MemberHomePage> {
   late final String _roleLabel;
 
   final MapController mapController = MapController();
-  LatLng latLng = LatLng(16.246373, 103.251827);
+  final LatLng sampleCenter = LatLng(13.7563, 100.5018); // กทม. เป็นค่า default
+
+  int get _currentIndex => _isSender ? _senderIndex : _receiverIndex;
+  set _currentIndex(int idx) {
+    if (_isSender) {
+      _senderIndex = idx;
+    } else {
+      _receiverIndex = idx;
+    }
+  }
+
+  List<BottomNavigationBarItem> get _senderItems => const [
+    BottomNavigationBarItem(icon: Icon(Icons.add_box_outlined), label: 'สร้าง'),
+    BottomNavigationBarItem(icon: Icon(Icons.map_outlined), label: 'แผนที่'),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.list_alt_outlined),
+      label: 'รายการ',
+    ),
+  ];
+
+  List<BottomNavigationBarItem> get _receiverItems => const [
+    BottomNavigationBarItem(icon: Icon(Icons.map_outlined), label: 'แผนที่'),
+    BottomNavigationBarItem(icon: Icon(Icons.inbox_outlined), label: 'รายการ'),
+  ];
 
   @override
   void initState() {
@@ -49,7 +81,7 @@ class _MemberHomePageState extends State<MemberHomePage> {
 
   Future<void> _loadConfig() async {
     try {
-      final config = await Configuration.getConfig(); // <- ของคุณ
+      final config = await Configuration.getConfig();
       setState(() {
         _baseUrl = config['apiEndpoint'] as String?;
         _loadingCfg = false;
@@ -80,146 +112,96 @@ class _MemberHomePageState extends State<MemberHomePage> {
         ),
       );
     }
+
+    final items = _isSender ? _senderItems : _receiverItems;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+        child: Column(
           children: [
-            ProfileHeader(
-              name: _name,
-              role: _roleLabel,
-              image: _user['avatar_path']?.toString().isNotEmpty == true
-                  ? _user['avatar_path'] as String
-                  : 'assets/images/default_avatar.png',
-              baseUrl: _baseUrl,
-              onMorePressed: () =>
-                  Get.to(() => const ProfilePage(), arguments: _user),
-            ),
-
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: TabButton(
-                    text: "ผู้ส่ง",
-                    selected: _isSender,
-                    onTap: () => setState(() => _isSender = true),
-                  ),
-                ),
-                Expanded(
-                  child: TabButton(
-                    text: "ผู้รับ",
-                    selected: !_isSender,
-                    onTap: () => setState(() => _isSender = false),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Map
-            Container(
-              height: 260,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+            // ===== Header คงที่ทุกหน้า =====
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+              child: ProfileHeader(
+                name: _name,
+                role: _roleLabel,
+                image: _user['avatar_path']?.toString().isNotEmpty == true
+                    ? _user['avatar_path'] as String
+                    : 'assets/images/default_avatar.png',
+                baseUrl: _baseUrl,
+                onMorePressed: () =>
+                    Get.to(() => const ProfilePage(), arguments: _user),
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: SizedBox(
-                  height: 200,
-                  child: IgnorePointer(
-                    child: FlutterMap(
-                      mapController: mapController,
-                      options: MapOptions(
-                        initialCenter: latLng,
-                        initialZoom: 15.2,
-                      ),
-                      children: [
-                        TileLayer(
-                          urlTemplate:
-                              'https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=0b03b55da9a64adab5790c1c9515b15a',
-                          userAgentPackageName: 'net.gonggang.osm_demo',
-                        ),
-                        MarkerLayer(
-                          markers: [
-                            Marker(
-                              point: latLng,
-                              child: const Icon(
-                                Icons.location_on,
-                                color: Colors.red,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ), // TODO: แทนด้วย FlutterMap/GoogleMap
-              ),
-            ),
-            const SizedBox(height: 18),
-
-            // Orders info
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "ข้อมูลไรเดอร์",
-                    style: GoogleFonts.nunitoSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ...List.generate(3, (i) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Text(
-                        "${i + 1}. ร้านข้าวมันไก่ → หอมีชัยแมนชั่น",
-                        style: GoogleFonts.notoSansThai(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    );
-                  }),
-                ],
-              ),
-            ),
-            const Spacer(),
-
-            // Action Button
-            GradientButton(
-              text: "สร้างสินค้า",
-              onTap: () {
-                // TODO: ไปหน้า Create Order
-              },
             ),
             const SizedBox(height: 12),
+
+            // ===== TabButton คงที่ทุกหน้า =====
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TabButton(
+                      text: "ผู้ส่ง",
+                      selected: _isSender,
+                      onTap: () => setState(() {
+                        _isSender = true;
+                        _senderIndex = _senderIndex.clamp(
+                          0,
+                          _senderItems.length - 1,
+                        );
+                      }),
+                    ),
+                  ),
+                  Expanded(
+                    child: TabButton(
+                      text: "ผู้รับ",
+                      selected: !_isSender,
+                      onTap: () => setState(() {
+                        _isSender = false;
+                        _receiverIndex = _receiverIndex.clamp(
+                          0,
+                          _receiverItems.length - 1,
+                        );
+                      }),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // ===== เนื้อหาสลับหน้า ด้วย IndexedStack =====
+            Expanded(
+              child: IndexedStack(
+                index: _currentIndex,
+                children: _isSender
+                    ? [
+                        SenderCreatePage(baseUrl: _baseUrl!), // 0
+                        SenderMapPage(baseUrl: _baseUrl!), // 1
+                        SenderListPage(baseUrl: _baseUrl!), // 2
+                      ]
+                    : [
+                        ReceiverMapPage(baseUrl: _baseUrl!), // 0
+                        ReceiverListPage(baseUrl: _baseUrl!), // 1
+                      ],
+              ),
+            ),
           ],
         ),
+      ),
+
+      // ===== Bottom Nav ตามโหมด =====
+      bottomNavigationBar: BottomNavigationBar(
+        items: items,
+        currentIndex: _currentIndex.clamp(0, items.length - 1),
+        type: BottomNavigationBarType.fixed,
+        onTap: (idx) => setState(() => _currentIndex = idx),
+        selectedLabelStyle: GoogleFonts.notoSansThai(
+          fontWeight: FontWeight.w700,
+        ),
+        unselectedLabelStyle: GoogleFonts.notoSansThai(),
       ),
     );
   }

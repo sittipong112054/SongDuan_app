@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -166,6 +168,30 @@ class _LoginPagesState extends State<LoginPages> {
                             return null;
                           },
                         ),
+                        if (kDebugMode) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.bolt_rounded),
+                                  label: const Text('DEBUG: Login MEMBER'),
+                                  onPressed: () =>
+                                      Get.to(() => MemberHomePage()),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.motorcycle_rounded),
+                                  label: const Text('DEBUG: Login RIDER'),
+                                  onPressed: () =>
+                                      Get.to(() => RiderHomePage()),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
 
                         const Spacer(),
                         GradientButton(
