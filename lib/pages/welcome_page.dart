@@ -20,136 +20,129 @@ class _WelcomePageState extends State<WelcomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final kb = MediaQuery.of(context).viewInsets.bottom;
-
     return Scaffold(
       backgroundColor: const Color(0xFFFFF1DB),
       resizeToAvoidBottomInset: true,
-      body: AnimatedPadding(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
-        padding: EdgeInsets.only(bottom: kb),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              children: [
-                const SizedBox(height: 150),
-                Container(
-                  width: 180,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.07),
-                        blurRadius: 16,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.all(18),
-                  child: Image.asset(
-                    'assets/images/logo.png',
-                    fit: BoxFit.contain,
-                  ),
-                ),
-                const SizedBox(height: 28),
-                Stack(
-                  children: [
-                    Text(
-                      'SONGDUAN EXPRESS',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.staatliches(
-                        fontSize: 42,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                        foreground: Paint()
-                          ..style = PaintingStyle.stroke
-                          ..strokeWidth = 3
-                          ..color = _orange,
-                        shadows: [
-                          Shadow(color: _gold, offset: const Offset(6, 0)),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      'SONGDUAN EXPRESS',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.staatliches(
-                        fontSize: 42,
-                        letterSpacing: 1.2,
-                        color: Colors.white,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black.withOpacity(0.2),
-                            offset: const Offset(0, 4),
-                            blurRadius: 6,
-                          ),
-                        ],
-                      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: Column(
+            children: [
+              const SizedBox(height: 150),
+              Container(
+                width: 180,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.07),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
                     ),
                   ],
                 ),
-                Text(
-                  'เรียลไทม์ ส่งไว ถึงชัวร์',
-                  style: GoogleFonts.notoSansThai(
-                    color: const Color(0xFF8C8C8C).withOpacity(0.65),
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                  ),
+                padding: const EdgeInsets.all(18),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  fit: BoxFit.contain,
                 ),
-                const Spacer(),
-                SizedBox(
-                  width: double.infinity,
-                  height: 64,
-                  child: ElevatedButton(
-                    onPressed: () => Get.to(() => const LoginPages()),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: Text(
-                      'ลงชื่อเข้าสู่ระบบ',
-                      style: GoogleFonts.notoSansThai(
-                        color: _gold,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
+              ),
+              const SizedBox(height: 28),
+              Stack(
+                children: [
+                  Text(
+                    'SONGDUAN EXPRESS',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.staatliches(
+                      fontSize: 42,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                      foreground: Paint()
+                        ..style = PaintingStyle.stroke
+                        ..strokeWidth = 3
+                        ..color = _orange,
+                      shadows: [
+                        Shadow(color: _gold, offset: const Offset(6, 0)),
+                      ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(child: _line()),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(
-                        'Or',
-                        style: GoogleFonts.abel(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 18,
-                          color: _textDark.withOpacity(0.6),
+                  Text(
+                    'SONGDUAN EXPRESS',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.staatliches(
+                      fontSize: 42,
+                      letterSpacing: 1.2,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withOpacity(0.2),
+                          offset: const Offset(0, 4),
+                          blurRadius: 6,
                         ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                'เรียลไทม์ ส่งไว ถึงชัวร์',
+                style: GoogleFonts.notoSansThai(
+                  color: const Color(0xFF8C8C8C).withOpacity(0.65),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              SizedBox(
+                width: double.infinity,
+                height: 64,
+                child: ElevatedButton(
+                  onPressed: () => Get.to(() => const LoginPages()),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: Text(
+                    'ลงชื่อเข้าสู่ระบบ',
+                    style: GoogleFonts.notoSansThai(
+                      color: _gold,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(child: _line()),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      'Or',
+                      style: GoogleFonts.abel(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                        color: _textDark.withOpacity(0.6),
                       ),
                     ),
-                    Expanded(child: _line()),
-                  ],
-                ),
-                const SizedBox(height: 18),
+                  ),
+                  Expanded(child: _line()),
+                ],
+              ),
+              const SizedBox(height: 18),
 
-                GradientButton(text: 'ลงทะเบียน', onTap: _onRegister),
-                const SizedBox(height: 60),
+              GradientButton(text: 'ลงทะเบียน', onTap: _onRegister),
+              const SizedBox(height: 60),
 
-                _TermsRichText(
-                  onTapTerms: _openTerms,
-                  onTapPrivacy: _openPrivacy,
-                ),
-              ],
-            ),
+              _TermsRichText(
+                onTapTerms: _openTerms,
+                onTapPrivacy: _openPrivacy,
+              ),
+            ],
           ),
         ),
       ),

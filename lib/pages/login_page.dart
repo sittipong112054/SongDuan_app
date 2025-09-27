@@ -127,8 +127,9 @@ class _LoginPagesState extends State<LoginPages> {
                           validator: (v) {
                             final value = (v ?? '').trim();
                             if (value.isEmpty) return 'กรอกชื่อผู้ใช้';
-                            if (value.length < 4)
+                            if (value.length < 4) {
                               return 'ความยาวอย่างน้อย 4 ตัวอักษร';
+                            }
                             if (!RegExp(r'^[a-zA-Z0-9._-]+$').hasMatch(value)) {
                               return 'ใช้ได้เฉพาะ a-z, 0-9, ., _, -';
                             }
@@ -138,7 +139,6 @@ class _LoginPagesState extends State<LoginPages> {
 
                         const SizedBox(height: 14),
 
-                        // Password
                         CustomTextField(
                           hint: 'Password',
                           controller: _passCtrl,
@@ -160,14 +160,14 @@ class _LoginPagesState extends State<LoginPages> {
                           validator: (v) {
                             final value = v ?? '';
                             if (value.isEmpty) return 'กรุณากรอกรหัสผ่าน';
-                            if (value.length < 6)
+                            if (value.length < 6) {
                               return 'รหัสผ่านอย่างน้อย 6 ตัวอักษร';
+                            }
                             return null;
                           },
                         ),
 
                         const Spacer(),
-                        // ปุ่มเข้าสู่ระบบ
                         GradientButton(
                           text: _loading
                               ? 'กำลังเข้าสู่ระบบ...'
@@ -176,7 +176,6 @@ class _LoginPagesState extends State<LoginPages> {
                         ),
                         const SizedBox(height: 24),
 
-                        // สมัครสมาชิก: เลี่ยง TapGestureRecognizer ใน build
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -244,10 +243,7 @@ class _LoginPagesState extends State<LoginPages> {
               'Content-Type': 'application/json; charset=utf-8',
               'Accept': 'application/json',
             },
-            body: jsonEncode({
-              'identifier': identifier, // username หรือ phone
-              'password': password,
-            }),
+            body: jsonEncode({'identifier': identifier, 'password': password}),
           )
           .timeout(const Duration(seconds: 20));
 
@@ -270,7 +266,6 @@ class _LoginPagesState extends State<LoginPages> {
         return;
       }
 
-      // error จาก backend
       final err = data['error'];
       final errMsg = (err is Map && err['message'] is String)
           ? err['message'] as String
