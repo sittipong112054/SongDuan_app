@@ -64,7 +64,7 @@ class _GradientButtonState extends State<GradientButton> {
             widget.text,
             style: GoogleFonts.notoSansThai(
               color: Colors.white,
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: FontWeight.bold,
             ),
           ),

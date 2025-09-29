@@ -68,7 +68,7 @@ class CustomTextField extends StatelessWidget {
           inputFormatters: inputFormatters,
           maxLength: maxLength,
           decoration: InputDecoration(
-            counterText: '', // ซ่อนตัวเลขนับถ้าใช้ maxLength
+            counterText: '',
             hintText: hint,
             prefixIcon: prefixIcon,
             suffixIcon: suffixIcon,

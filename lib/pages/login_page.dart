@@ -282,7 +282,7 @@ class _LoginPagesState extends State<LoginPages> {
         final role = (data['role'] ?? '').toString().toUpperCase();
 
         Get.snackbar(
-          'สำเร็จ',
+          'เข้าสู่ระบบสำเร็จ',
           'ยินดีต้อนรับ ${data['username'] ?? identifier}',
           snackPosition: SnackPosition.BOTTOM,
           duration: const Duration(seconds: 1),
@@ -297,14 +297,14 @@ class _LoginPagesState extends State<LoginPages> {
           ? err['message'] as String
           : 'เข้าสู่ระบบไม่สำเร็จ (HTTP ${resp.statusCode})';
       Get.snackbar(
-        'ไม่สำเร็จ',
+        'เข้าสู่ระบบไม่สำเร็จ',
         errMsg,
         snackPosition: SnackPosition.BOTTOM,
         duration: const Duration(seconds: 3),
       );
     } catch (e) {
       Get.snackbar(
-        'ไม่สำเร็จ',
+        'เข้าสู่ระบบไม่สำเร็จ',
         'เกิดข้อผิดพลาด: $e',
         snackPosition: SnackPosition.BOTTOM,
         duration: const Duration(seconds: 3),

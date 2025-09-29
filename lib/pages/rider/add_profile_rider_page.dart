@@ -381,8 +381,6 @@ class _RiderProfilePageState extends State<RiderProfilePage> {
   }
 }
 
-// ================= UI Components =================
-
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.text);
   final String text;
