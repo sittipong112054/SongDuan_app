@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:songduan_app/config/config.dart';
 import 'package:songduan_app/pages/profile_page.dart';
 import 'package:songduan_app/widgets/profile_header.dart';
@@ -35,9 +33,6 @@ class _MemberHomePageState extends State<MemberHomePage> {
   late final Map<String, dynamic> _user;
   late final String _name;
   late final String _roleLabel;
-
-  final MapController mapController = MapController();
-  final LatLng sampleCenter = LatLng(13.7563, 100.5018);
 
   int get _currentIndex => _isSender ? _senderIndex : _receiverIndex;
   set _currentIndex(int idx) {
@@ -195,7 +190,7 @@ class _MemberHomePageState extends State<MemberHomePage> {
         type: BottomNavigationBarType.fixed,
         onTap: (idx) => setState(() => _currentIndex = idx),
         selectedLabelStyle: GoogleFonts.notoSansThai(
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.bold,
         ),
         unselectedLabelStyle: GoogleFonts.notoSansThai(),
       ),

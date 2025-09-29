@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:songduan_app/widgets/order_card.dart';
-// import 'package:songduan_app/widgets/order_tile.dart' show OrderStatus;
 
 class DeliveryStatusCard extends StatelessWidget {
   final int number;
@@ -31,9 +30,9 @@ class DeliveryStatusCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.10),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            color: Colors.black.withOpacity(0.14),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -41,7 +40,6 @@ class DeliveryStatusCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // แถวหัวข้อ: หมายเลข + ชื่อ + “โดย …”
           Row(
             children: [
               _CircleNumber(n: number, color: badgeColor),
@@ -66,13 +64,9 @@ class DeliveryStatusCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-
-          // แถบสถานะ 3 จุด
           StatusStepBar(status: status),
-
           const SizedBox(height: 10),
 
-          // จาก → ไป
           Row(
             children: [
               Expanded(
@@ -138,7 +132,6 @@ class _CircleNumber extends StatelessWidget {
   }
 }
 
-/// แถบสถานะ 3 จุด: เข้ารับสินค้า / กำลังส่งสินค้า / จัดส่งสำเร็จ
 class StatusStepBar extends StatelessWidget {
   final OrderStatus status;
   const StatusStepBar({super.key, required this.status});
@@ -169,7 +162,6 @@ class StatusStepBar extends StatelessWidget {
 
     return Column(
       children: [
-        // dot ─ line ─ dot ─ line ─ dot
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Row(

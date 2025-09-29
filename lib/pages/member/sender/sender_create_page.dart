@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import 'package:songduan_app/services/mock_directory_service.dart';
 
 import 'package:songduan_app/widgets/gradient_button.dart';
 import 'package:songduan_app/widgets/custom_text_field.dart';
+import 'package:songduan_app/widgets/section_title.dart';
 
 class SenderCreatePage extends StatefulWidget {
   final String baseUrl;
@@ -17,15 +20,41 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
   final _phoneCtrl = TextEditingController();
   final _jobNameCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
-  final List<TextEditingController> _itemCtrls = [
-    TextEditingController(text: 'ชื่อสินค้า #1'),
-  ];
+
+  final List<TextEditingController> _itemCtrls = [TextEditingController()];
 
   bool _busy = false;
   List<Map<String, dynamic>> _results = [];
   int? _selectedAddressIndex;
-
   String? _proofImagePath;
+
+  @override
+  void initState() {
+    super.initState();
+    _phoneCtrl.addListener(_rebuild);
+    _jobNameCtrl.addListener(_rebuild);
+    _noteCtrl.addListener(_rebuild);
+    for (final c in _itemCtrls) {
+      c.addListener(_rebuild);
+    }
+  }
+
+  @override
+  void dispose() {
+    _phoneCtrl.removeListener(_rebuild);
+    _jobNameCtrl.removeListener(_rebuild);
+    _noteCtrl.removeListener(_rebuild);
+    _phoneCtrl.dispose();
+    _jobNameCtrl.dispose();
+    _noteCtrl.dispose();
+    for (final c in _itemCtrls) {
+      c.removeListener(_rebuild);
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _rebuild() => setState(() {});
 
   Future<void> _searchReceiver() async {
     final phone = _phoneCtrl.text.trim();
@@ -51,15 +80,17 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
   }
 
   void _addItemField() {
-    final next = _itemCtrls.length + 1;
-    setState(
-      () => _itemCtrls.add(TextEditingController(text: 'ชื่อสินค้า #$next')),
-    );
+    final c = TextEditingController();
+    c.addListener(_rebuild);
+    setState(() => _itemCtrls.add(c));
   }
 
   void _removeItemField(int i) {
     if (_itemCtrls.length == 1) return;
-    setState(() => _itemCtrls.removeAt(i));
+    final c = _itemCtrls.removeAt(i);
+    c.removeListener(_rebuild);
+    c.dispose();
+    setState(() {});
   }
 
   void _confirm() {
@@ -75,8 +106,17 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
     _toast('ยืนยันการสร้างสินค้า $count รายการ (mock)');
   }
 
-  void _toast(String msg) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  void _toast(String msg) {
+    Get.snackbar(
+      'แจ้งเตือน',
+      msg,
+      snackPosition: SnackPosition.BOTTOM,
+      margin: const EdgeInsets.all(12),
+      borderRadius: 12,
+      backgroundColor: Colors.black87,
+      colorText: Colors.white,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,6 +124,7 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
         _phoneCtrl.text.trim().isNotEmpty &&
         _selectedAddressIndex != null &&
         _itemCtrls.any((c) => c.text.trim().isNotEmpty);
+
     final itemCount = _itemCtrls.where((c) => c.text.trim().isNotEmpty).length;
 
     return ListView(
@@ -127,7 +168,7 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
         _CameraCard(imagePath: _proofImagePath, onTap: _attachProofMock),
 
         const SizedBox(height: 16),
-        _SectionTitle('ข้อมูลสินค้า'),
+        SectionTitle('ข้อมูลสินค้า'),
         const SizedBox(height: 10),
 
         CustomTextField(
@@ -151,6 +192,7 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
               children: [
                 Expanded(
                   child: CustomTextField(
+                    key: ValueKey('item_$i'),
                     hint: 'ชื่อสินค้า #${i + 1}',
                     controller: ctrl,
                     prefixIcon: const Icon(
@@ -175,7 +217,7 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
         _AddItemButton(onTap: _addItemField),
         const SizedBox(height: 16),
 
-        _SectionTitle('ระบุโน๊ต'),
+        SectionTitle('ระบุโน๊ต'),
 
         const SizedBox(height: 6),
         _NoteField(controller: _noteCtrl),
@@ -195,17 +237,6 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
         const SizedBox(height: 6),
       ],
     );
-  }
-
-  @override
-  void dispose() {
-    _phoneCtrl.dispose();
-    _jobNameCtrl.dispose();
-    _noteCtrl.dispose();
-    for (final c in _itemCtrls) {
-      c.dispose();
-    }
-    super.dispose();
   }
 }
 
@@ -236,9 +267,7 @@ class _ReceiverCard extends StatelessWidget {
             children: [
               const CircleAvatar(
                 radius: 18,
-                backgroundImage: AssetImage(
-                  'assets/images/default_avatar.png',
-                ), // mock
+                backgroundImage: AssetImage('assets/images/default_avatar.png'),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -257,7 +286,7 @@ class _ReceiverCard extends StatelessWidget {
             final i = e.$1;
             final m = e.$2;
             return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.only(left: 8, bottom: 10),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -286,25 +315,31 @@ class _ReceiverCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'ที่อยู่ ${i + 1}',
-                          style: GoogleFonts.notoSansThai(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w800,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'ที่อยู่ ${i + 1}',
+                            style: GoogleFonts.notoSansThai(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          m['address'] as String,
-                          style: GoogleFonts.notoSansThai(
-                            fontSize: 13.5,
-                            color: Colors.black.withOpacity(0.80),
+                          const SizedBox(height: 2),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 10),
+                            child: Text(
+                              m['address'] as String,
+                              style: GoogleFonts.notoSansThai(
+                                fontSize: 13.5,
+                                color: Colors.black.withOpacity(0.80),
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -327,23 +362,6 @@ class _ReceiverCard extends StatelessWidget {
       ),
     ],
   );
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: GoogleFonts.notoSansThai(
-        fontSize: 16.5,
-        fontWeight: FontWeight.w900,
-        color: const Color(0xFF2F2F2F),
-      ),
-    );
-  }
 }
 
 class _CameraCard extends StatelessWidget {
@@ -408,31 +426,32 @@ class _AddItemButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Opacity(
-      opacity: 0.92,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          height: 46,
-          decoration: BoxDecoration(
-            color: const Color(0xFFEDEEF1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
+    return Align(
+      alignment: Alignment.center,
+      child: Material(
+        color: const Color(0xFFEDEEF1),
+        borderRadius: BorderRadius.circular(12),
+        elevation: 2,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
                   'เพิ่มสินค้าที่จะส่ง',
                   style: GoogleFonts.notoSansThai(
                     fontSize: 14.5,
                     fontWeight: FontWeight.w800,
-                    color: Colors.black.withOpacity(0.35),
+                    color: Colors.black.withOpacity(0.7),
                   ),
                 ),
-              ),
-              const Icon(Icons.add, color: Colors.black38),
-            ],
+                const SizedBox(width: 8),
+                const Icon(Icons.add, color: Colors.black54),
+              ],
+            ),
           ),
         ),
       ),
@@ -451,6 +470,13 @@ class _NoteField extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFF0F2F5),
         borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.12),
+            offset: const Offset(0, 6),
+            blurRadius: 10,
+          ),
+        ],
       ),
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       child: TextField(
@@ -476,13 +502,7 @@ class _RoundIconBtn extends StatelessWidget {
   final VoidCallback? onTap;
   final double size = 40;
   final double iconSize = 22;
-  const _RoundIconBtn({
-    required this.icon,
-    this.tooltip,
-    this.onTap,
-    // this.size = 40,
-    // this.iconSize = 22,
-  });
+  const _RoundIconBtn({required this.icon, this.tooltip, this.onTap});
 
   @override
   Widget build(BuildContext context) {

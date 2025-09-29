@@ -29,7 +29,6 @@ class OrderCard extends StatelessWidget {
   final VoidCallback? onDetail;
   final OrderStatus status;
 
-  // ---------- MAP: status → icon ----------
   IconData _mapStatusToIcon(OrderStatus status) {
     switch (status) {
       case OrderStatus.waitingPickup:
@@ -43,7 +42,6 @@ class OrderCard extends StatelessWidget {
     }
   }
 
-  // ---------- MAP: status → gradient colors ----------
   List<Color> _mapStatusToColors(OrderStatus status) {
     switch (status) {
       case OrderStatus.waitingPickup:
@@ -76,7 +74,6 @@ class OrderCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ---------- LEFT: product image ----------
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -101,7 +98,6 @@ class OrderCard extends StatelessWidget {
 
           const SizedBox(width: 14),
 
-          // ---------- MIDDLE ----------
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,7 +164,6 @@ class OrderCard extends StatelessWidget {
 
           const SizedBox(width: 8),
 
-          // ---------- RIGHT ----------
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [

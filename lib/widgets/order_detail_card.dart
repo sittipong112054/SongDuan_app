@@ -179,15 +179,24 @@ class OrderDetailCard extends StatelessWidget {
 
           const SizedBox(height: 18),
 
-          // แสดงสถานะ
           if (showStatus)
             Center(
-              child: Text(
-                "สถานะ : ${_mapStatusToText(status)}",
-                style: GoogleFonts.notoSansThai(
-                  fontSize: 15.5,
-                  fontWeight: FontWeight.w900,
-                  color: colors.last,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: colors.last.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  "สถานะ : ${_mapStatusToText(status)}",
+                  style: GoogleFonts.notoSansThai(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w900,
+                    color: colors.last,
+                  ),
                 ),
               ),
             ),

@@ -20,7 +20,7 @@ class MapPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 350,
+      height: 380,
       decoration: BoxDecoration(
         color: const Color(0xFFF0F2F5),
         borderRadius: BorderRadius.circular(18),

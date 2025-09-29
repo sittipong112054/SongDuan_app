@@ -1,9 +1,12 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:songduan_app/services/mock_realtime_service.dart';
 import 'package:songduan_app/widgets/order_card.dart';
+import 'package:songduan_app/widgets/order_detail_card.dart';
+import 'package:songduan_app/widgets/section_title.dart';
 
 class ReceiverListPage extends StatelessWidget {
   final String baseUrl;
@@ -20,7 +23,8 @@ class ReceiverListPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final svc = MockRealtimeService();
 
-    // mock รายการ 2 ชิ้นที่กำลังมาหาเรา
+    // final items = <Map<String, dynamic>>[];
+
     final items = List.generate(2, (i) {
       return {
         'title': 'Incoming #${i + 1}',
@@ -34,41 +38,84 @@ class ReceiverListPage extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
       children: [
-        Text(
-          'ของที่กำลังจัดส่งมายังฉัน (Receiver)',
-          style: GoogleFonts.nunitoSans(
-            fontSize: 16,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
+        const SizedBox(height: 10),
+        SectionTitle('ของที่กำลังจัดส่งมายังฉัน (Receiver)'),
         const SizedBox(height: 10),
 
-        ...items.map(
-          (m) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: StreamBuilder(
-              stream: svc.orderStatusStream(),
-              builder: (context, snapshot) {
-                final status = snapshot.data ?? OrderStatus.waitingPickup;
-                return OrderCard(
-                  title: m['title'] as String,
-                  from: m['from'] as String,
-                  to: m['to'] as String,
-                  distanceText: m['distance'] as String,
-                  imagePath: m['image'],
-                  status: status,
-                  onDetail: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('ดูรายละเอียด: ${m['title']} (mock)'),
-                      ),
-                    );
-                  },
-                );
-              },
+        if (items.isEmpty) ...[
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Text(
+                'ยังไม่มีข้อมูลการจัดส่ง',
+                style: GoogleFonts.notoSansThai(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black54,
+                ),
+              ),
             ),
           ),
-        ),
+        ] else ...[
+          ...items.map(
+            (m) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: StreamBuilder(
+                stream: svc.orderStatusStream(),
+                builder: (context, snapshot) {
+                  final status = snapshot.data ?? OrderStatus.waitingPickup;
+                  return OrderCard(
+                    title: m['title'] as String,
+                    from: m['from'] as String,
+                    to: m['to'] as String,
+                    distanceText: m['distance'] as String,
+                    imagePath: m['image'],
+                    status: status,
+                    onDetail: () {
+                      Get.dialog(
+                        Dialog(
+                          insetPadding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 24,
+                          ),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 520),
+                            child: SingleChildScrollView(
+                              child: OrderDetailCard(
+                                productName: m['title'] as String,
+                                imagePath: m['image'],
+                                status: status,
+                                sender: PersonInfo(
+                                  avatar: 'assets/images/Leonardo.png',
+                                  role: 'ผู้ส่ง',
+                                  name: 'สมศักดิ์ สิทธิบัน',
+                                  phone: '093-9054980',
+                                  address:
+                                      'บ้านนาถุสิถิ๋ ตำบลสงสัย อำเภอบ่านสนใจ\nมหาสารคาม 44150 ประเทศไทย',
+                                  placeName: m['from'] as String,
+                                ),
+                                receiver: PersonInfo(
+                                  avatar: 'assets/images/Leonardo.png',
+                                  role: 'ผู้รับ',
+                                  name: 'สิทธิบัน',
+                                  phone: '093-9054980',
+                                  address:
+                                      'บ้านนาถุสิถิ๋ ตำบลสงสัย อำเประเทศไทย',
+                                  placeName: m['to'] as String,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        barrierDismissible: true,
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }

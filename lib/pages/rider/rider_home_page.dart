@@ -121,7 +121,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
                         imagePath: 'assets/images/logo.png',
                         status: OrderStatus.waitingPickup,
                         sender: PersonInfo(
-                          avatar: 'assets/images/Vin.png',
+                          avatar: 'assets/images/Leonardo.png',
                           role: 'ผู้ส่ง',
                           name: 'สมศักดิ์ สิทธิบัน',
                           phone: '093-9054980',

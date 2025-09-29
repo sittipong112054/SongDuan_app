@@ -22,13 +22,11 @@ class ProfileHeader extends StatelessWidget {
   ImageProvider _resolveImageProvider() {
     final s = image.trim();
 
-    // 2) Relative path จากเซิร์ฟเวอร์ เช่น /uploads/avatars/xxx.jpg
     if (s.startsWith('/')) {
       final b = (baseUrl ?? '').trimRight();
       if (b.isNotEmpty) {
         return NetworkImage('$b$s');
       }
-      // ไม่มี baseUrl ก็ fallback เป็น Asset เพื่อไม่ให้แครช
       return const AssetImage('assets/images/johncena.png');
     }
 
