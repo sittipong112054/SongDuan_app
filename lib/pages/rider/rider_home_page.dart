@@ -40,7 +40,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
     _roleLabel = switch (role) {
       'RIDER' => 'Rider',
       'MEMBER' => 'Member',
-      _ => 'Rider',
+      _ => 'User',
     };
   }
 

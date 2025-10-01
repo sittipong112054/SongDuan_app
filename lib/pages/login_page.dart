@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 
 import 'package:flutter/foundation.dart';
 
@@ -289,6 +290,7 @@ class _LoginPagesState extends State<LoginPages> {
         );
 
         _goByRole(role, userData: data);
+        log(data.toString());
         return;
       }
 

@@ -11,7 +11,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:path/path.dart' as p;
 import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart'; // ใช้อันนี้สำหรับ MediaType
+import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
 import 'package:songduan_app/config/config.dart';
 
@@ -21,6 +21,7 @@ import 'package:songduan_app/pages/member/map_page.dart';
 
 import 'package:songduan_app/widgets/gradient_button.dart';
 import 'package:songduan_app/widgets/custom_text_field.dart';
+import 'package:songduan_app/widgets/section_title.dart';
 
 class MemberProfilePage extends StatefulWidget {
   const MemberProfilePage({super.key});
@@ -165,7 +166,7 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
 
                 const SizedBox(height: 22),
 
-                const _SectionTitle('ข้อมูลติดต่อ'),
+                const SectionTitle('ข้อมูลติดต่อ'),
                 const SizedBox(height: 8),
 
                 CustomTextField(
@@ -198,7 +199,7 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
 
                 const SizedBox(height: 18),
 
-                const _SectionTitle('ข้อมูลที่อยู่'),
+                const SectionTitle('ข้อมูลที่อยู่'),
                 const SizedBox(height: 8),
 
                 CustomTextField(
@@ -310,7 +311,7 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
       await out.writeAsBytes(img.encodeJpg(decoded, quality: 80));
       return out;
     } catch (_) {
-      return file; // ถ้าบีบอัดพัง ให้ใช้ไฟล์เดิม
+      return file;
     }
   }
 
@@ -318,7 +319,7 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
     final x = await _picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 85,
-    ); // ลดบน device
+    );
     if (x != null) {
       var f = File(x.path);
       f = await _compressImage(f) ?? f;
@@ -371,23 +372,23 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
         final file = _avatarFile!;
         final fileName = p.basename(file.path);
         final mime = lookupMimeType(file.path) ?? 'image/jpeg';
-        final parts = mime.split('/'); // ["image","jpeg"]
+        final parts = mime.split('/');
 
         final stream = http.ByteStream(file.openRead());
         final length = await file.length();
 
         request.files.add(
           http.MultipartFile(
-            'avatarFile', // ต้องตรงกับ backend
+            'avatarFile',
             stream,
             length,
             filename: fileName,
-            contentType: MediaType(parts[0], parts[1]), // <-- จาก http_parser
+            contentType: MediaType(parts[0], parts[1]),
           ),
         );
       }
 
-      // request.headers['Authorization'] = 'Bearer ...'; // ถ้ามี
+      // request.headers['Authorization'] = 'Bearer ...';
 
       final streamed = await request.send().timeout(
         const Duration(seconds: 30),
@@ -437,23 +438,6 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: GoogleFonts.notoSansThai(
-        fontSize: 16.5,
-        fontWeight: FontWeight.w900,
-        color: const Color(0xFF2F2F2F),
-      ),
-    );
   }
 }
 

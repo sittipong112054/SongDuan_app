@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 import 'package:songduan_app/config/config.dart';
 import 'package:songduan_app/pages/login_page.dart';
 import 'package:songduan_app/pages/member/add_location_page.dart';
@@ -17,14 +19,19 @@ class _ProfilePageState extends State<ProfilePage> {
   static const _textDark = Color(0xFF2F2F2F);
   static const _orange = Color(0xFFEA4335);
   static const _gold = Color(0xFFFF9C00);
+
   String? _baseUrl;
 
   late final Map<String, dynamic> user;
+  late final String userId;
   late final String name;
   late final String roleLabel;
   late final String phone;
   late final String? avatarPath;
-  late final List<Map<String, dynamic>> addresses;
+
+  List<Map<String, dynamic>> _addresses = [];
+  bool _isLoadingAddresses = false;
+  String? _addrError;
 
   @override
   void initState() {
@@ -34,27 +41,16 @@ class _ProfilePageState extends State<ProfilePage> {
     final args = Get.arguments;
     user = (args is Map<String, dynamic>) ? args : <String, dynamic>{};
 
+    userId = (user['id'] ?? user['user_id'] ?? '').toString();
     name = (user['name'] ?? user['username'] ?? 'ผู้ใช้').toString();
     final role = (user['role'] ?? '').toString().toUpperCase();
     roleLabel = switch (role) {
       'RIDER' => 'Rider',
       'MEMBER' => 'Member',
-      'USER' => 'User',
-      _ => 'Member',
+      _ => 'User',
     };
     phone = (user['phone'] ?? '-').toString();
     avatarPath = user['avatar_path']?.toString();
-
-    final rawAddrs = user['addresses'];
-    if (rawAddrs is List) {
-      addresses = rawAddrs
-          .whereType<Map>()
-          .map((e) => e.map((k, v) => MapEntry(k.toString(), v)))
-          .toList()
-          .cast<Map<String, dynamic>>();
-    } else {
-      addresses = const [];
-    }
   }
 
   Future<void> _loadConfig() async {
@@ -63,7 +59,69 @@ class _ProfilePageState extends State<ProfilePage> {
       setState(() {
         _baseUrl = config['apiEndpoint'] as String?;
       });
-    } catch (e) {}
+      // โหลดที่อยู่หลังได้ baseUrl แล้ว
+      if (mounted) _fetchAddresses();
+    } catch (e) {
+      // เงียบไว้
+    }
+  }
+
+  Future<void> _fetchAddresses() async {
+    if ((_baseUrl ?? '').isEmpty || userId.isEmpty) {
+      setState(() {
+        _addrError = 'ตั้งค่าไม่ครบ (baseUrl หรือ userId ว่าง)';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoadingAddresses = true;
+      _addrError = null;
+    });
+
+    try {
+      final uri = Uri.parse('$_baseUrl/addresses/users/$userId/addresses');
+
+      final res = await http.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          // 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final data = jsonDecode(res.body);
+
+        final list = (data is Map && data['data'] is List)
+            ? (data['data'] as List)
+            : (data is List ? data : const []);
+
+        final addrs = list
+            .whereType<Map>()
+            .map((e) => e.map((k, v) => MapEntry(k.toString(), v)))
+            .cast<Map<String, dynamic>>()
+            .toList();
+
+        setState(() {
+          _addresses = addrs;
+        });
+      } else {
+        setState(() {
+          _addrError = 'โหลดที่อยู่ไม่สำเร็จ (${res.statusCode})';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _addrError = 'เกิดข้อผิดพลาดในการเชื่อมต่อ';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingAddresses = false;
+        });
+      }
+    }
   }
 
   ImageProvider _resolveAvatar(String? s) {
@@ -116,114 +174,160 @@ class _ProfilePageState extends State<ProfilePage> {
       backgroundColor: Colors.white,
 
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 10),
-                  child: CircleAvatar(
-                    radius: avatarSize / 2,
-                    backgroundImage: _resolveAvatar(avatarPath),
-                    backgroundColor: Colors.grey.shade300,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: GoogleFonts.nunitoSans(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
-                          color: _textDark,
-                        ),
-                      ),
-                      Text(
-                        roleLabel,
-                        style: GoogleFonts.nunitoSans(
-                          fontSize: 14,
-                          color: Colors.black.withOpacity(0.45),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 18),
-
-            Text(
-              'ข้อมูลส่วนตัว',
-              style: GoogleFonts.nunitoSans(
-                fontSize: 15.5,
-                fontWeight: FontWeight.w900,
-                color: _textDark,
-              ),
-            ),
-            const SizedBox(height: 10),
-            _ReadOnlyField(hint: 'Name', value: name),
-            const SizedBox(height: 10),
-            _ReadOnlyField(hint: 'Phone Number', value: phone),
-
-            const SizedBox(height: 18),
-
-            Row(
-              children: [
-                Text(
-                  'ที่อยู่',
-                  style: GoogleFonts.nunitoSans(
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w900,
-                    color: _textDark,
-                  ),
-                ),
-                const Spacer(),
-                GestureDetector(
-                  onTap: () {
-                    // Get.snackbar('ที่อยู่', 'เพิ่มที่อยู่ใหม่');
-                    Get.to(() => AddLocationPage());
-                  },
-                  child: Text(
-                    'เพิ่มที่อยู่',
-                    style: GoogleFonts.nunitoSans(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w900,
-                      color: const Color(0xFFFF9C00),
+        child: RefreshIndicator(
+          onRefresh: _fetchAddresses,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(left: 10),
+                    child: CircleAvatar(
+                      radius: avatarSize / 2,
+                      backgroundImage: _resolveAvatar(avatarPath),
+                      backgroundColor: Colors.grey.shade300,
                     ),
                   ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: GoogleFonts.nunitoSans(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            color: _textDark,
+                          ),
+                        ),
+                        Text(
+                          roleLabel,
+                          style: GoogleFonts.nunitoSans(
+                            fontSize: 14,
+                            color: Colors.black.withOpacity(0.45),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 18),
+
+              Text(
+                'ข้อมูลส่วนตัว',
+                style: GoogleFonts.nunitoSans(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w900,
+                  color: _textDark,
+                ),
+              ),
+              const SizedBox(height: 10),
+              _ReadOnlyField(hint: 'Name', value: name),
+              const SizedBox(height: 10),
+              _ReadOnlyField(hint: 'Phone Number', value: phone),
+
+              const SizedBox(height: 18),
+
+              Row(
+                children: [
+                  Text(
+                    'ที่อยู่',
+                    style: GoogleFonts.nunitoSans(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w900,
+                      color: _textDark,
+                    ),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () {
+                      Get.to(
+                        () => const AddLocationPage(),
+                        arguments: {'userId': userId},
+                      );
+                    },
+                    child: Text(
+                      'เพิ่มที่อยู่',
+                      style: GoogleFonts.nunitoSans(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFFFF9C00),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              if (_isLoadingAddresses) ...[
+                const _AddressSkeleton(),
+                const SizedBox(height: 10),
+                const _AddressSkeleton(),
+              ] else if (_addrError != null) ...[
+                _ErrorTile(message: _addrError!, onRetry: _fetchAddresses),
+              ] else if (_addresses.isNotEmpty) ...[
+                ..._addresses.map((addr) {
+                  final title = (addr['label'] ?? 'ที่อยู่').toString();
+                  final subtitle =
+                      (addr['address_text'] ??
+                              addr['full_address'] ??
+                              addr['line'] ??
+                              '')
+                          .toString();
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _AddressTile(
+                      title: title,
+                      subtitle: subtitle,
+                      onTap: () async {
+                        final updated = await Get.to(
+                          () => const AddLocationPage(),
+                          arguments: {'userId': userId, 'address': addr},
+                        );
+
+                        if (updated != null && updated is Map) {
+                          final id = updated['id'] ?? updated['address_id'];
+                          setState(() {
+                            final idx = _addresses.indexWhere(
+                              (e) => (e['id'] ?? e['address_id']) == id,
+                            );
+                            if (idx >= 0) {
+                              _addresses[idx] = Map<String, dynamic>.from(
+                                updated,
+                              );
+                            } else {
+                              _addresses.insert(
+                                0,
+                                Map<String, dynamic>.from(updated),
+                              );
+                            }
+                          });
+                        }
+                        await _fetchAddresses();
+                      },
+                    ),
+                  );
+                }),
+              ] else ...[
+                _AddressTile(
+                  title: '—',
+                  subtitle: 'ยังไม่มีที่อยู่ตั้งค่าไว้',
+                  onTap: null,
                 ),
               ],
-            ),
-            const SizedBox(height: 10),
-
-            // แสดงรายการที่อยู่จริง (ถ้ามี) ไม่งั้นโชว์ตัวอย่างว่าง ๆ
-            if (addresses.isNotEmpty)
-              ...addresses.map((addr) {
-                final title = (addr['label'] ?? 'ที่อยู่').toString();
-                final subtitle = (addr['address_text'] ?? '').toString();
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _AddressTile(title: title, subtitle: subtitle),
-                );
-              })
-            else ...[
-              const _AddressTile(
-                title: '—',
-                subtitle: 'ยังไม่มีที่อยู่ตั้งค่าไว้',
-              ),
             ],
-          ],
+          ),
         ),
       ),
 
-      // ปุ่มออกจากระบบ
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.all(18),
         child: SizedBox(
@@ -288,9 +392,15 @@ class _ReadOnlyField extends StatelessWidget {
 }
 
 class _AddressTile extends StatelessWidget {
-  const _AddressTile({required this.title, required this.subtitle});
+  const _AddressTile({
+    required this.title,
+    required this.subtitle,
+    this.onTap, // 👈 เพิ่ม
+  });
+
   final String title;
   final String subtitle;
+  final VoidCallback? onTap; // 👈 เพิ่ม
 
   @override
   Widget build(BuildContext context) {
@@ -301,9 +411,7 @@ class _AddressTile extends StatelessWidget {
       shadowColor: Colors.black.withOpacity(0.12),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: () {
-          Get.snackbar('ที่อยู่', 'เปิดรายละเอียดที่อยู่');
-        },
+        onTap: onTap, // 👈 ใช้ callback ที่ส่งมา
         child: Container(
           height: 64,
           padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -338,6 +446,98 @@ class _AddressTile extends StatelessWidget {
                 Icons.chevron_right_rounded,
                 size: 28,
                 color: Colors.black.withOpacity(0.6),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AddressSkeleton extends StatelessWidget {
+  const _AddressSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 64,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F6F7),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.10),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [_bar(), _bar(widthFactor: 0.6)],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bar({double widthFactor = 0.8}) {
+    return FractionallySizedBox(
+      widthFactor: widthFactor,
+      child: Container(
+        height: 12,
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorTile extends StatelessWidget {
+  const _ErrorTile({required this.message, required this.onRetry});
+  final String message;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFFFF3F1),
+      borderRadius: BorderRadius.circular(14),
+      elevation: 6,
+      shadowColor: Colors.black.withOpacity(0.12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onRetry,
+        child: Container(
+          height: 72,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.red.shade400),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: GoogleFonts.nunitoSans(
+                    color: Colors.black.withOpacity(0.8),
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              Text(
+                'ลองใหม่',
+                style: GoogleFonts.nunitoSans(
+                  color: Colors.red.shade400,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ],
           ),
