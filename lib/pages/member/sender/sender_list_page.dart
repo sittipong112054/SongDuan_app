@@ -1,120 +1,338 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 
-import 'package:songduan_app/services/mock_realtime_service.dart';
+// import 'package:songduan_app/services/mock_realtime_service.dart';
+
+import 'package:songduan_app/services/session_service.dart';
 import 'package:songduan_app/widgets/order_card.dart';
 import 'package:songduan_app/widgets/order_detail_card.dart';
 import 'package:songduan_app/widgets/section_title.dart';
 
-class SenderListPage extends StatelessWidget {
+class SenderListPage extends StatefulWidget {
   final String baseUrl;
   const SenderListPage({super.key, required this.baseUrl});
 
-  String _mockDistance(int i) {
+  @override
+  State<SenderListPage> createState() => _SenderListPageState();
+}
+
+class _SenderListPageState extends State<SenderListPage> {
+  bool _loading = false;
+  String? _error;
+  List<Map<String, dynamic>> _items = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchShipments();
+  }
+
+  Future<void> _fetchShipments() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final senderId = Get.find<SessionService>().currentUserId;
+      final uri = Uri.parse(
+        '${widget.baseUrl}/shipments',
+      ).replace(queryParameters: {'sender_id': '$senderId'});
+
+      final resp = await http
+          .get(uri, headers: {'Content-Type': 'application/json'})
+          .timeout(const Duration(seconds: 15));
+
+      final body = jsonDecode(utf8.decode(resp.bodyBytes));
+
+      if (resp.statusCode >= 200 && resp.statusCode < 300) {
+        final List list = (body is Map && body['data'] is List)
+            ? (body['data'] as List)
+            : (body is List ? body : const []);
+
+        final mapped = list.map<Map<String, dynamic>>((x) {
+          final pickup =
+              (x['pickup'] ?? x['pickup_address'] ?? {}) as Map? ?? {};
+          final dropoff =
+              (x['dropoff'] ?? x['dropoff_address'] ?? {}) as Map? ?? {};
+
+          final double? distanceKm = (x['distance_km'] is num)
+              ? (x['distance_km'] as num).toDouble()
+              : null;
+          final String distanceText = distanceKm != null
+              ? '${distanceKm.toStringAsFixed(1)} กม.'
+              : _mockDistance(x['id'] ?? 0);
+
+          // cover image (สินค้ารวม/หลักฐานตอนเริ่ม)
+          final cover =
+              (x['cover_file_path'] ?? x['file_path'] ?? '') as String;
+          final imagePath = cover.trim().isEmpty
+              ? null
+              : (cover.startsWith('http')
+                    ? cover
+                    : _joinBase(widget.baseUrl, cover));
+
+          // sender avatar
+          final rawSenderAvatar = (x['sender']?['avatar_path'] ?? '') as String;
+          final senderAvatar = rawSenderAvatar.trim().isEmpty
+              ? null
+              : (rawSenderAvatar.startsWith('http')
+                    ? rawSenderAvatar
+                    : _joinBase(widget.baseUrl, rawSenderAvatar));
+
+          // receiver avatar (ไว้ใช้ในรายละเอียด)
+          final rawReceiverAvatar =
+              (x['receiver']?['avatar_path'] ?? '') as String;
+          final receiverAvatar = rawReceiverAvatar.trim().isEmpty
+              ? null
+              : (rawReceiverAvatar.startsWith('http')
+                    ? rawReceiverAvatar
+                    : _joinBase(widget.baseUrl, rawReceiverAvatar));
+
+          return {
+            'id': x['id'],
+            'title': (x['title'] ?? 'Order').toString(),
+            'from': (pickup['label'] ?? pickup['address_text'] ?? '—')
+                .toString(),
+            'to': (dropoff['label'] ?? dropoff['address_text'] ?? '—')
+                .toString(),
+            'distance': distanceText,
+            'image': imagePath,
+            'status': _mapStatus((x['status'] ?? '').toString()),
+            'sender_avatar': senderAvatar,
+            'receiver_avatar': receiverAvatar,
+            '_raw': x,
+            '_pickup': pickup,
+            '_dropoff': dropoff,
+          };
+        }).toList();
+
+        setState(() => _items = mapped);
+      } else {
+        final msg =
+            (body is Map &&
+                body['error'] is Map &&
+                body['error']['message'] is String)
+            ? body['error']['message'] as String
+            : 'HTTP ${resp.statusCode}';
+        setState(() => _error = msg);
+      }
+    } catch (e) {
+      setState(() => _error = 'โหลดข้อมูลไม่สำเร็จ: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  // ---------------- Helpers ----------------
+  String _mockDistance(dynamic seed) {
+    final i = (seed is int) ? seed : 1;
     final km = (1.2 + (i * 0.8) + Random(i).nextDouble()).toStringAsFixed(1);
     return '$km กม.';
   }
 
+  String _joinBase(String base, String rel) {
+    final b = base.replaceFirst(RegExp(r'\/+$'), '');
+    final r = rel.startsWith('/') ? rel : '/$rel';
+    return '$b$r';
+  }
+
+  OrderStatus _mapStatus(String s) {
+    switch (s.toUpperCase()) {
+      case 'WAITING_FOR_RIDER':
+        return OrderStatus.waitingPickup;
+      case 'RIDER_ACCEPTED':
+        return OrderStatus.riderAccepted;
+      case 'PICKED_UP_EN_ROUTE':
+        return OrderStatus.delivering; // ปรับตาม enum ในแอปคุณ
+      case 'DELIVERED':
+        return OrderStatus.delivered;
+      default:
+        return OrderStatus.waitingPickup;
+    }
+  }
+
+  void _openDetail(Map<String, dynamic> m) {
+    final raw = m['_raw'] as Map<String, dynamic>? ?? {};
+    final pickup = m['_pickup'] as Map<String, dynamic>? ?? const {};
+    final dropoff = m['_dropoff'] as Map<String, dynamic>? ?? const {};
+
+    final senderAvatar =
+        (raw['sender']?['avatar_path'] is String &&
+            (raw['sender']!['avatar_path'] as String).trim().isNotEmpty)
+        ? _joinBase(widget.baseUrl, raw['sender']!['avatar_path'] as String)
+        : 'assets/images/default_avatar.png';
+
+    final receiverAvatar =
+        (raw['receiver']?['avatar_path'] is String &&
+            (raw['receiver']!['avatar_path'] as String).trim().isNotEmpty)
+        ? _joinBase(widget.baseUrl, raw['receiver']!['avatar_path'] as String)
+        : 'assets/images/default_avatar.png';
+
+    Get.dialog(
+      Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: SingleChildScrollView(
+            child: OrderDetailCard(
+              productName: m['title'] as String,
+              imagePath: m['image'] as String?,
+              status: m['status'] as OrderStatus,
+              sender: PersonInfo(
+                avatar: senderAvatar,
+                role: 'ผู้ส่ง',
+                name: (raw['sender']?['name'] ?? '—').toString(),
+                phone: (raw['sender']?['phone'] ?? '—').toString(),
+                address: (pickup['address_text'] ?? pickup['label'] ?? '—')
+                    .toString(),
+                placeName: (pickup['label'] ?? '—').toString(),
+              ),
+              receiver: PersonInfo(
+                avatar: receiverAvatar,
+                role: 'ผู้รับ',
+                name: (raw['receiver']?['name'] ?? '—').toString(),
+                phone: (raw['receiver']?['phone'] ?? '—').toString(),
+                address: (dropoff['address_text'] ?? dropoff['label'] ?? '—')
+                    .toString(),
+                placeName: (dropoff['label'] ?? '—').toString(),
+              ),
+            ),
+          ),
+        ),
+      ),
+      barrierDismissible: true,
+    );
+  }
+
+  // ---------------- UI ----------------
   @override
   Widget build(BuildContext context) {
-    final svc = MockRealtimeService();
+    return RefreshIndicator(
+      onRefresh: _fetchShipments,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
+        children: [
+          const SizedBox(height: 10),
+          SectionTitle('รายการส่งของของฉัน (Sender)'),
+          const SizedBox(height: 10),
 
-    // final items = <Map<String, dynamic>>[];
-
-    final items = List.generate(3, (i) {
-      return {
-        'title': 'Order #${i + 1}',
-        'from': 'ร้านตัวอย่าง ${i + 1}',
-        'to': 'ซอยตัวอย่าง ${10 + i}',
-        'distance': _mockDistance(i),
-        'image': i == 0 ? 'assets/images/mrbeast.jpg' : null,
-      };
-    });
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
-      children: [
-        const SizedBox(height: 10),
-        SectionTitle('รายการส่งของของฉัน (Sender)'),
-        const SizedBox(height: 10),
-
-        if (items.isEmpty) ...[
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Text(
-                'ยังไม่มีข้อมูลการจัดส่ง',
-                style: GoogleFonts.notoSansThai(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black54,
+          if (_loading) ...[
+            _LoadingCard(),
+            const SizedBox(height: 12),
+            _LoadingCard(),
+            const SizedBox(height: 12),
+            _LoadingCard(),
+          ] else if (_error != null) ...[
+            _ErrorTile(message: _error!, onRetry: _fetchShipments),
+          ] else if (_items.isEmpty) ...[
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Text(
+                  'ยังไม่มีข้อมูลการจัดส่ง',
+                  style: GoogleFonts.notoSansThai(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black54,
+                  ),
                 ),
               ),
             ),
-          ),
-        ] else ...[
-          ...items.map(
-            (m) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: StreamBuilder(
-                stream: svc.orderStatusStream(),
-                builder: (context, snapshot) {
-                  final status = snapshot.data ?? OrderStatus.waitingPickup;
-                  return OrderCard(
-                    title: m['title'] as String,
-                    from: m['from'] as String,
-                    to: m['to'] as String,
-                    distanceText: m['distance'] as String,
-                    imagePath: m['image'],
-                    status: status,
-                    onDetail: () {
-                      Get.dialog(
-                        Dialog(
-                          insetPadding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 24,
-                          ),
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 520),
-                            child: SingleChildScrollView(
-                              child: OrderDetailCard(
-                                productName: m['title'] as String,
-                                imagePath: m['image'],
-                                status: status,
-                                sender: PersonInfo(
-                                  avatar: 'assets/images/Leonardo.png',
-                                  role: 'ผู้ส่ง',
-                                  name: 'สมศักดิ์ สิทธิบัน',
-                                  phone: '093-9054980',
-                                  address:
-                                      'บ้านนาถุสิถิ๋ ตำบลสงสัย อำเภอบ่านสนใจ\nมหาสารคาม 44150 ประเทศไทย',
-                                  placeName: m['from'] as String,
-                                ),
-                                receiver: PersonInfo(
-                                  avatar: 'assets/images/Leonardo.png',
-                                  role: 'ผู้รับ',
-                                  name: 'สิทธิบัน',
-                                  phone: '093-9054980',
-                                  address:
-                                      'บ้านนาถุสิถิ๋ ตำบลสงสัย อำเประเทศไทย',
-                                  placeName: m['to'] as String,
-                                ),
+          ] else ...[
+            ..._items.map((m) {
+              final ImageProvider? senderAvatarProv =
+                  m['sender_avatar_provider'] as ImageProvider?;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Stack(
+                  children: [
+                    // ถ้า OrderCard ของคุณรับ imagePath เป็น URL อยู่แล้ว ส่ง m['image'] ได้เลย
+                    OrderCard(
+                      title: m['title'] as String,
+                      from: m['from'] as String,
+                      to: m['to'] as String,
+                      distanceText: m['distance'] as String,
+                      imagePath: m['image'] as String?, // URL (หรือ null)
+                      status: m['status'] as OrderStatus,
+                      onDetail: () => _openDetail(m),
+                    ),
+
+                    // วาง avatar ผู้ส่งทับมุมซ้ายบน
+                    if (senderAvatarProv != null)
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.15),
+                                blurRadius: 6,
+                                offset: const Offset(0, 3),
                               ),
-                            ),
+                            ],
+                          ),
+                          child: CircleAvatar(
+                            radius: 16,
+                            backgroundImage: senderAvatarProv,
+                            backgroundColor: Colors.grey.shade200,
                           ),
                         ),
-                        barrierDismissible: true,
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ),
+                      ),
+                  ],
+                ),
+              );
+            }),
+          ],
         ],
-      ],
+      ),
     );
   }
+}
+
+// --------- ชิ้นส่วน UI เล็ก ๆ ----------
+class _LoadingCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 92,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F2F5),
+        borderRadius: BorderRadius.circular(16),
+      ),
+    );
+  }
+}
+
+class _ErrorTile extends StatelessWidget {
+  final String message;
+  final Future<void> Function() onRetry;
+  const _ErrorTile({required this.message, required this.onRetry});
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: const Color(0xFFFFE9E9),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.error_outline, color: Colors.red),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(message, style: const TextStyle(color: Colors.red)),
+        ),
+        TextButton(onPressed: onRetry, child: const Text('ลองใหม่')),
+      ],
+    ),
+  );
 }

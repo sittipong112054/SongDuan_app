@@ -17,7 +17,8 @@ class OrderDetailCard extends StatelessWidget {
   final String productName;
   final PersonInfo sender;
   final PersonInfo receiver;
-  final String? imagePath;
+  final String?
+  imagePath; // 👉 ควรเป็น URL (http/https) ถ้าไม่ใช่จะ fallback icon
   final OrderStatus status;
   final bool showStatus;
 
@@ -60,6 +61,12 @@ class OrderDetailCard extends StatelessWidget {
       case OrderStatus.delivered:
         return 'จัดส่งสำเร็จแล้ว [4]';
     }
+  }
+
+  bool _isHttpUrl(String? s) {
+    if (s == null) return false;
+    final v = s.trim().toLowerCase();
+    return v.startsWith('http://') || v.startsWith('https://');
   }
 
   @override
@@ -120,6 +127,7 @@ class OrderDetailCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
+          // รูปสินค้า (NetworkImage)
           Center(
             child: Container(
               width: 210,
@@ -128,9 +136,28 @@ class OrderDetailCard extends StatelessWidget {
                 color: const Color(0xFFE9E9E9),
                 borderRadius: BorderRadius.circular(18),
               ),
+              clipBehavior: Clip.antiAlias,
               alignment: Alignment.center,
-              child: imagePath != null
-                  ? Image.asset(imagePath!, fit: BoxFit.cover)
+              child: (_isHttpUrl(imagePath))
+                  ? Image.network(
+                      imagePath!,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+                        return const Center(
+                          child: SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stack) => Icon(
+                        Icons.broken_image_outlined,
+                        size: 56,
+                        color: Colors.black.withOpacity(0.45),
+                      ),
+                    )
                   : Icon(
                       Icons.image_not_supported_rounded,
                       size: 56,
@@ -207,6 +234,7 @@ class OrderDetailCard extends StatelessWidget {
 }
 
 class PersonInfo {
+  /// avatar ควรเป็น URL (http/https) ถ้าไม่ใช่จะ fallback เป็น default icon
   final String avatar;
   final String role;
   final String name;
@@ -228,13 +256,38 @@ class _PersonBlock extends StatelessWidget {
   const _PersonBlock({required this.info});
   final PersonInfo info;
 
+  bool _isHttpUrl(String? s) {
+    if (s == null) return false;
+    final v = s.trim().toLowerCase();
+    return v.startsWith('http://') || v.startsWith('https://');
+  }
+
   @override
   Widget build(BuildContext context) {
     final grey = Colors.black.withOpacity(0.7);
+
+    Widget avatarWidget;
+    if (_isHttpUrl(info.avatar)) {
+      avatarWidget = CircleAvatar(
+        radius: 20,
+        backgroundColor: Colors.grey.shade200,
+        backgroundImage: NetworkImage(info.avatar),
+        onBackgroundImageError: (_, __) {},
+        child: const SizedBox.shrink(),
+      );
+    } else {
+      // ถ้าไม่ใช่ URL → ใช้ icon เอง (กันพัง)
+      avatarWidget = CircleAvatar(
+        radius: 20,
+        backgroundColor: Colors.grey.shade300,
+        child: const Icon(Icons.person, color: Colors.white),
+      );
+    }
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CircleAvatar(radius: 20, backgroundImage: AssetImage(info.avatar)),
+        avatarWidget,
         const SizedBox(width: 10),
         Expanded(
           child: DefaultTextStyle(

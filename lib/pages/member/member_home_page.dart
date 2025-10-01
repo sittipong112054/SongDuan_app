@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:songduan_app/config/config.dart';
 import 'package:songduan_app/pages/profile_page.dart';
+import 'package:songduan_app/services/session_service.dart';
 import 'package:songduan_app/widgets/profile_header.dart';
 import 'package:songduan_app/widgets/Tab_Button.dart';
 
@@ -72,6 +73,11 @@ class _MemberHomePageState extends State<MemberHomePage> {
       'MEMBER' => 'Member',
       _ => 'User',
     };
+
+    final session = Get.put(SessionService(), permanent: true);
+    final dynamic idCandidate =
+        _user['id'] ?? _user['user_id'] ?? _user['uid'] ?? _user['member_id'];
+    session.setCurrentUserId(idCandidate);
   }
 
   Future<void> _loadConfig() async {

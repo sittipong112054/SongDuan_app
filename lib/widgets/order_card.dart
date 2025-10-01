@@ -17,7 +17,7 @@ class OrderCard extends StatelessWidget {
     required this.to,
     required this.distanceText,
     required this.status,
-    this.imagePath,
+    this.imagePath, // ควรเป็น URL แบบเต็ม (http/https หรือ path ที่ประกอบแล้ว)
     this.onDetail,
   });
 
@@ -25,7 +25,7 @@ class OrderCard extends StatelessWidget {
   final String from;
   final String to;
   final String distanceText;
-  final String? imagePath;
+  final String? imagePath; // URL ภาพ (Network)
   final VoidCallback? onDetail;
   final OrderStatus status;
 
@@ -74,19 +74,42 @@ class OrderCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // รูปหลัก (Network)
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
                 width: 100,
                 height: 100,
+                clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
-                  color: Color(0xFFD9D9D9),
+                  color: const Color(0xFFD9D9D9),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                clipBehavior: Clip.antiAlias,
-                child: imagePath != null
-                    ? Image.asset(imagePath!, fit: BoxFit.cover)
+                child: (imagePath != null && imagePath!.trim().isNotEmpty)
+                    ? Image.network(
+                        imagePath!,
+                        fit: BoxFit.cover,
+                        // กันพังเวลาโหลดรูปไม่ได้
+                        errorBuilder: (context, error, stack) => const Center(
+                          child: Icon(
+                            Icons.broken_image_outlined,
+                            size: 40,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        // ใส่ placeholder ตอนกำลังโหลดเล็กน้อย
+                        loadingBuilder: (context, child, progress) {
+                          if (progress == null) return child;
+                          return const Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          );
+                        },
+                      )
                     : const Icon(
                         Icons.image_not_supported_rounded,
                         size: 48,
@@ -98,6 +121,7 @@ class OrderCard extends StatelessWidget {
 
           const SizedBox(width: 14),
 
+          // ข้อมูลข้อความ
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,6 +188,7 @@ class OrderCard extends StatelessWidget {
 
           const SizedBox(width: 8),
 
+          // สถานะ + ปุ่ม
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
