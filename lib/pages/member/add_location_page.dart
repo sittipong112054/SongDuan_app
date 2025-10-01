@@ -12,20 +12,6 @@ import 'package:songduan_app/widgets/gradient_button.dart';
 import 'package:songduan_app/widgets/custom_text_field.dart';
 import 'package:songduan_app/widgets/section_title.dart';
 
-/// Add/Edit Address Page
-///
-/// Usage:
-/// Get.to(() => AddLocationPage(), arguments: {
-///   'userId': 123,               // required
-///   'address': {                 // optional → edit mode
-///     'id': 10,
-///     'label': 'บ้าน',
-///     'address_text': '123/4 หมู่ 5 ...',
-///     'lat': 13.745,
-///     'lng': 100.492,
-///     'is_default': 1,
-///   }
-/// });
 class AddLocationPage extends StatefulWidget {
   const AddLocationPage({super.key});
 
@@ -331,7 +317,7 @@ class _AddLocationPageState extends State<AddLocationPage> {
       http.Response resp;
       if (addressId == null) {
         // create
-        final uri = Uri.parse('$_baseUrl/addresses/users/$userId/addresses');
+        final uri = Uri.parse('$_baseUrl/addresses/$userId');
         resp = await http.post(
           uri,
           headers: {'Content-Type': 'application/json'},
@@ -345,7 +331,7 @@ class _AddLocationPageState extends State<AddLocationPage> {
         );
       } else {
         // update
-        final uri = Uri.parse('$_baseUrl/addresses/addresses/$addressId');
+        final uri = Uri.parse('$_baseUrl/addresses/$addressId');
         resp = await http.patch(
           uri,
           headers: {'Content-Type': 'application/json'},
@@ -389,10 +375,9 @@ class _AddLocationPageState extends State<AddLocationPage> {
 
     final ok = await showConfirmDeleteAddressDialog();
     if (!ok) return;
-    // ทำงานลบต่อ...
 
     try {
-      final uri = Uri.parse('$_baseUrl/addresses/addresses/$addressId');
+      final uri = Uri.parse('$_baseUrl/addresses/$addressId');
       final resp = await http.delete(uri);
       if (resp.statusCode == 204) {
         Get.back(result: {'deleted': true, 'id': addressId});

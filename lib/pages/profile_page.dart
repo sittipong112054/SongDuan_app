@@ -30,12 +30,10 @@ class _ProfilePageState extends State<ProfilePage> {
   late final String phone;
   late final String? avatarPath;
 
-  // ----- Addresses State (สำหรับ Member/User) -----
   List<Map<String, dynamic>> _addresses = [];
   bool _isLoadingAddresses = false;
   String? _addrError;
 
-  // ----- Vehicle State (สำหรับ Rider) -----
   Map<String, dynamic>? _vehicle;
   bool _isLoadingVehicle = false;
   String? _vehicleError;
@@ -61,7 +59,7 @@ class _ProfilePageState extends State<ProfilePage> {
     phone = (user['phone'] ?? '-').toString();
     avatarPath = user['avatar_path']?.toString();
 
-    _loadConfig(); // หลังได้ baseUrl แล้วจะเรียก fetch ที่ถูกต้องให้อัตโนมัติ
+    _loadConfig();
   }
 
   Future<void> _loadConfig() async {
@@ -72,7 +70,6 @@ class _ProfilePageState extends State<ProfilePage> {
       });
       if (!mounted) return;
 
-      // โหลดข้อมูลตาม role
       if (isRider) {
         await _fetchVehicle();
       } else {
@@ -83,9 +80,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // ---------------------------------------------
-  // Address: สำหรับ Member/User เท่านั้น
-  // ---------------------------------------------
   Future<void> _fetchAddresses() async {
     if ((_baseUrl ?? '').isEmpty || userId.isEmpty) {
       setState(() {
@@ -100,7 +94,7 @@ class _ProfilePageState extends State<ProfilePage> {
     });
 
     try {
-      final uri = Uri.parse('$_baseUrl/addresses/users/$userId/addresses');
+      final uri = Uri.parse('$_baseUrl/addresses/$userId');
 
       final res = await http.get(
         uri,
@@ -144,9 +138,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // ---------------------------------------------
-  // Vehicle: สำหรับ Rider เท่านั้น
-  // ---------------------------------------------
   Future<void> _fetchVehicle() async {
     if ((_baseUrl ?? '').isEmpty || userId.isEmpty) {
       setState(() {
@@ -161,7 +152,6 @@ class _ProfilePageState extends State<ProfilePage> {
     });
 
     try {
-      // ตัวอย่าง endpoint: /vehicles/users/{userId}
       final uri = Uri.parse('$_baseUrl/riders/vehicles/$userId');
 
       final res = await http.get(
@@ -174,7 +164,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final data = jsonDecode(res.body);
-        // รองรับทั้ง { data: {...} } หรือ {...}
         final obj = (data is Map && data['data'] is Map)
             ? Map<String, dynamic>.from(data['data'])
             : (data is Map ? Map<String, dynamic>.from(data) : null);
@@ -200,9 +189,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // ---------------------------------------------
-  // Helpers
-  // ---------------------------------------------
   ImageProvider _resolveAvatar(String? s) {
     if (s == null || s.trim().isEmpty) {
       return const AssetImage('assets/images/default_avatar.png');
@@ -291,7 +277,6 @@ class _ProfilePageState extends State<ProfilePage> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
             children: [
-              // Header: Avatar + Name + Role
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -332,7 +317,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
               const SizedBox(height: 18),
 
-              // Personal info
               Text(
                 'ข้อมูลส่วนตัว',
                 style: GoogleFonts.nunitoSans(
@@ -348,9 +332,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
               const SizedBox(height: 18),
 
-              // Conditional section
               if (isRider) ...[
-                // ---------------- Vehicle for RIDER ----------------
                 Text(
                   'ข้อมูลยานพาหนะ',
                   style: GoogleFonts.nunitoSans(
@@ -362,7 +344,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(height: 10),
 
                 if (_isLoadingVehicle) ...[
-                  const _AddressSkeleton(), // ใช้ skeleton เดิมแทนโหลด
+                  const _AddressSkeleton(),
                 ] else if (_vehicleError != null) ...[
                   _ErrorTile(message: _vehicleError!, onRetry: _fetchVehicle),
                 ] else if (_vehicle != null) ...[
@@ -397,7 +379,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ],
               ] else ...[
-                // ---------------- Addresses for MEMBER/USER ----------------
                 Row(
                   children: [
                     Text(
@@ -410,11 +391,15 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const Spacer(),
                     GestureDetector(
-                      onTap: () {
-                        Get.to(
+                      onTap: () async {
+                        final created = await Get.to(
                           () => const AddLocationPage(),
                           arguments: {'userId': userId},
                         );
+
+                        if (created != null) {
+                          await _fetchAddresses();
+                        }
                       },
                       child: Text(
                         'เพิ่มที่อยู่',
@@ -594,15 +579,11 @@ class _ReadOnlyField extends StatelessWidget {
 }
 
 class _AddressTile extends StatelessWidget {
-  const _AddressTile({
-    required this.title,
-    required this.subtitle,
-    this.onTap, // 👈 เพิ่ม
-  });
+  const _AddressTile({required this.title, required this.subtitle, this.onTap});
 
   final String title;
   final String subtitle;
-  final VoidCallback? onTap; // 👈 เพิ่ม
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -613,7 +594,7 @@ class _AddressTile extends StatelessWidget {
       shadowColor: Colors.black.withOpacity(0.12),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: onTap, // 👈 ใช้ callback ที่ส่งมา
+        onTap: onTap,
         child: Container(
           height: 64,
           padding: const EdgeInsets.symmetric(horizontal: 14),

@@ -177,8 +177,10 @@ class _LoginPagesState extends State<LoginPages> {
                                 child: OutlinedButton.icon(
                                   icon: const Icon(Icons.bolt_rounded),
                                   label: const Text('DEBUG: Login MEMBER'),
-                                  onPressed: () =>
-                                      Get.to(() => MemberHomePage()),
+                                  onPressed: () {
+                                    _usernameCtrl.text = 'member003';
+                                    _passCtrl.text = 's3cret!';
+                                  },
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -186,8 +188,10 @@ class _LoginPagesState extends State<LoginPages> {
                                 child: OutlinedButton.icon(
                                   icon: const Icon(Icons.motorcycle_rounded),
                                   label: const Text('DEBUG: Login RIDER'),
-                                  onPressed: () =>
-                                      Get.to(() => RiderHomePage()),
+                                  onPressed: () {
+                                    _usernameCtrl.text = 'rider001';
+                                    _passCtrl.text = 's3cret!';
+                                  },
                                 ),
                               ),
                             ],
