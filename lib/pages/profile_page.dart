@@ -26,31 +26,42 @@ class _ProfilePageState extends State<ProfilePage> {
   late final String userId;
   late final String name;
   late final String roleLabel;
+  late final bool isRider;
   late final String phone;
   late final String? avatarPath;
 
+  // ----- Addresses State (สำหรับ Member/User) -----
   List<Map<String, dynamic>> _addresses = [];
   bool _isLoadingAddresses = false;
   String? _addrError;
 
+  // ----- Vehicle State (สำหรับ Rider) -----
+  Map<String, dynamic>? _vehicle;
+  bool _isLoadingVehicle = false;
+  String? _vehicleError;
+
   @override
   void initState() {
     super.initState();
-    _loadConfig();
 
     final args = Get.arguments;
     user = (args is Map<String, dynamic>) ? args : <String, dynamic>{};
 
     userId = (user['id'] ?? user['user_id'] ?? '').toString();
     name = (user['name'] ?? user['username'] ?? 'ผู้ใช้').toString();
+
     final role = (user['role'] ?? '').toString().toUpperCase();
     roleLabel = switch (role) {
       'RIDER' => 'Rider',
       'MEMBER' => 'Member',
       _ => 'User',
     };
+    isRider = roleLabel == 'Rider';
+
     phone = (user['phone'] ?? '-').toString();
     avatarPath = user['avatar_path']?.toString();
+
+    _loadConfig(); // หลังได้ baseUrl แล้วจะเรียก fetch ที่ถูกต้องให้อัตโนมัติ
   }
 
   Future<void> _loadConfig() async {
@@ -59,13 +70,22 @@ class _ProfilePageState extends State<ProfilePage> {
       setState(() {
         _baseUrl = config['apiEndpoint'] as String?;
       });
-      // โหลดที่อยู่หลังได้ baseUrl แล้ว
-      if (mounted) _fetchAddresses();
+      if (!mounted) return;
+
+      // โหลดข้อมูลตาม role
+      if (isRider) {
+        await _fetchVehicle();
+      } else {
+        await _fetchAddresses();
+      }
     } catch (e) {
       // เงียบไว้
     }
   }
 
+  // ---------------------------------------------
+  // Address: สำหรับ Member/User เท่านั้น
+  // ---------------------------------------------
   Future<void> _fetchAddresses() async {
     if ((_baseUrl ?? '').isEmpty || userId.isEmpty) {
       setState(() {
@@ -124,6 +144,65 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  // ---------------------------------------------
+  // Vehicle: สำหรับ Rider เท่านั้น
+  // ---------------------------------------------
+  Future<void> _fetchVehicle() async {
+    if ((_baseUrl ?? '').isEmpty || userId.isEmpty) {
+      setState(() {
+        _vehicleError = 'ตั้งค่าไม่ครบ (baseUrl หรือ userId ว่าง)';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoadingVehicle = true;
+      _vehicleError = null;
+    });
+
+    try {
+      // ตัวอย่าง endpoint: /vehicles/users/{userId}
+      final uri = Uri.parse('$_baseUrl/riders/vehicles/$userId');
+
+      final res = await http.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          // 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final data = jsonDecode(res.body);
+        // รองรับทั้ง { data: {...} } หรือ {...}
+        final obj = (data is Map && data['data'] is Map)
+            ? Map<String, dynamic>.from(data['data'])
+            : (data is Map ? Map<String, dynamic>.from(data) : null);
+
+        setState(() {
+          _vehicle = obj;
+        });
+      } else {
+        setState(() {
+          _vehicleError = 'โหลดข้อมูลยานพาหนะไม่สำเร็จ (${res.statusCode})';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _vehicleError = 'เกิดข้อผิดพลาดในการเชื่อมต่อ';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingVehicle = false;
+        });
+      }
+    }
+  }
+
+  // ---------------------------------------------
+  // Helpers
+  // ---------------------------------------------
   ImageProvider _resolveAvatar(String? s) {
     if (s == null || s.trim().isEmpty) {
       return const AssetImage('assets/images/default_avatar.png');
@@ -137,6 +216,38 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     return AssetImage(val);
+  }
+
+  ImageProvider? _resolveVehicleImage(Map<String, dynamic> v) {
+    final raw =
+        (v['image'] ??
+                v['image_url'] ??
+                v['imagePath'] ??
+                v['image_path'] ??
+                v['picture'] ??
+                '')
+            .toString()
+            .trim();
+
+    if (raw.isEmpty) return null;
+
+    if (raw.startsWith('/')) {
+      final b = (_baseUrl ?? '').trimRight();
+      if (b.isNotEmpty) return NetworkImage('$b$raw');
+      return null;
+    }
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      return NetworkImage(raw);
+    }
+    return AssetImage(raw);
+  }
+
+  Future<void> _onRefresh() async {
+    if (isRider) {
+      await _fetchVehicle();
+    } else {
+      await _fetchAddresses();
+    }
   }
 
   @override
@@ -175,11 +286,12 @@ class _ProfilePageState extends State<ProfilePage> {
 
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _fetchAddresses,
+          onRefresh: _onRefresh,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
             children: [
+              // Header: Avatar + Name + Role
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -220,6 +332,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
               const SizedBox(height: 18),
 
+              // Personal info
               Text(
                 'ข้อมูลส่วนตัว',
                 style: GoogleFonts.nunitoSans(
@@ -235,93 +348,144 @@ class _ProfilePageState extends State<ProfilePage> {
 
               const SizedBox(height: 18),
 
-              Row(
-                children: [
-                  Text(
-                    'ที่อยู่',
-                    style: GoogleFonts.nunitoSans(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w900,
-                      color: _textDark,
-                    ),
+              // Conditional section
+              if (isRider) ...[
+                // ---------------- Vehicle for RIDER ----------------
+                Text(
+                  'ข้อมูลยานพาหนะ',
+                  style: GoogleFonts.nunitoSans(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w900,
+                    color: _textDark,
                   ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () {
-                      Get.to(
-                        () => const AddLocationPage(),
-                        arguments: {'userId': userId},
-                      );
-                    },
-                    child: Text(
-                      'เพิ่มที่อยู่',
-                      style: GoogleFonts.nunitoSans(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w900,
-                        color: const Color(0xFFFF9C00),
-                      ),
-                    ),
+                ),
+                const SizedBox(height: 10),
+
+                if (_isLoadingVehicle) ...[
+                  const _AddressSkeleton(), // ใช้ skeleton เดิมแทนโหลด
+                ] else if (_vehicleError != null) ...[
+                  _ErrorTile(message: _vehicleError!, onRetry: _fetchVehicle),
+                ] else if (_vehicle != null) ...[
+                  _ReadOnlyField(
+                    hint: 'Vehicle model',
+                    value:
+                        (_vehicle!['vehicle_model'] ??
+                                _vehicle!['model'] ??
+                                _vehicle!['brand_model'] ??
+                                '-')
+                            .toString(),
+                  ),
+                  const SizedBox(height: 10),
+                  _ReadOnlyField(
+                    hint: 'License plate',
+                    value:
+                        (_vehicle!['license_plate'] ??
+                                _vehicle!['plate'] ??
+                                _vehicle!['registration'] ??
+                                '-')
+                            .toString(),
+                  ),
+                  const SizedBox(height: 10),
+                  _VehiclePictureBox(
+                    imageProvider: _resolveVehicleImage(_vehicle!),
+                  ),
+                ] else ...[
+                  _AddressTile(
+                    title: '—',
+                    subtitle: 'ยังไม่มีข้อมูลยานพาหนะ',
+                    onTap: null,
                   ),
                 ],
-              ),
-              const SizedBox(height: 10),
-
-              if (_isLoadingAddresses) ...[
-                const _AddressSkeleton(),
-                const SizedBox(height: 10),
-                const _AddressSkeleton(),
-              ] else if (_addrError != null) ...[
-                _ErrorTile(message: _addrError!, onRetry: _fetchAddresses),
-              ] else if (_addresses.isNotEmpty) ...[
-                ..._addresses.map((addr) {
-                  final title = (addr['label'] ?? 'ที่อยู่').toString();
-                  final subtitle =
-                      (addr['address_text'] ??
-                              addr['full_address'] ??
-                              addr['line'] ??
-                              '')
-                          .toString();
-
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _AddressTile(
-                      title: title,
-                      subtitle: subtitle,
-                      onTap: () async {
-                        final updated = await Get.to(
-                          () => const AddLocationPage(),
-                          arguments: {'userId': userId, 'address': addr},
-                        );
-
-                        if (updated != null && updated is Map) {
-                          final id = updated['id'] ?? updated['address_id'];
-                          setState(() {
-                            final idx = _addresses.indexWhere(
-                              (e) => (e['id'] ?? e['address_id']) == id,
-                            );
-                            if (idx >= 0) {
-                              _addresses[idx] = Map<String, dynamic>.from(
-                                updated,
-                              );
-                            } else {
-                              _addresses.insert(
-                                0,
-                                Map<String, dynamic>.from(updated),
-                              );
-                            }
-                          });
-                        }
-                        await _fetchAddresses();
-                      },
-                    ),
-                  );
-                }),
               ] else ...[
-                _AddressTile(
-                  title: '—',
-                  subtitle: 'ยังไม่มีที่อยู่ตั้งค่าไว้',
-                  onTap: null,
+                // ---------------- Addresses for MEMBER/USER ----------------
+                Row(
+                  children: [
+                    Text(
+                      'ที่อยู่',
+                      style: GoogleFonts.nunitoSans(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w900,
+                        color: _textDark,
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () {
+                        Get.to(
+                          () => const AddLocationPage(),
+                          arguments: {'userId': userId},
+                        );
+                      },
+                      child: Text(
+                        'เพิ่มที่อยู่',
+                        style: GoogleFonts.nunitoSans(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w900,
+                          color: const Color(0xFFFF9C00),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 10),
+
+                if (_isLoadingAddresses) ...[
+                  const _AddressSkeleton(),
+                  const SizedBox(height: 10),
+                  const _AddressSkeleton(),
+                ] else if (_addrError != null) ...[
+                  _ErrorTile(message: _addrError!, onRetry: _fetchAddresses),
+                ] else if (_addresses.isNotEmpty) ...[
+                  ..._addresses.map((addr) {
+                    final title = (addr['label'] ?? 'ที่อยู่').toString();
+                    final subtitle =
+                        (addr['address_text'] ??
+                                addr['full_address'] ??
+                                addr['line'] ??
+                                '')
+                            .toString();
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _AddressTile(
+                        title: title,
+                        subtitle: subtitle,
+                        onTap: () async {
+                          final updated = await Get.to(
+                            () => const AddLocationPage(),
+                            arguments: {'userId': userId, 'address': addr},
+                          );
+
+                          if (updated != null && updated is Map) {
+                            final id = updated['id'] ?? updated['address_id'];
+                            setState(() {
+                              final idx = _addresses.indexWhere(
+                                (e) => (e['id'] ?? e['address_id']) == id,
+                              );
+                              if (idx >= 0) {
+                                _addresses[idx] = Map<String, dynamic>.from(
+                                  updated,
+                                );
+                              } else {
+                                _addresses.insert(
+                                  0,
+                                  Map<String, dynamic>.from(updated),
+                                );
+                              }
+                            });
+                          }
+                          await _fetchAddresses();
+                        },
+                      ),
+                    );
+                  }),
+                ] else ...[
+                  _AddressTile(
+                    title: '—',
+                    subtitle: 'ยังไม่มีที่อยู่ตั้งค่าไว้',
+                    onTap: null,
+                  ),
+                ],
               ],
             ],
           ),
@@ -341,6 +505,44 @@ class _ProfilePageState extends State<ProfilePage> {
             },
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _VehiclePictureBox extends StatelessWidget {
+  const _VehiclePictureBox({required this.imageProvider});
+
+  final ImageProvider? imageProvider;
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageProvider == null) {
+      return Container(
+        height: 160,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.grey.shade200,
+        ),
+        child: Text(
+          'Picture of vehicle',
+          style: GoogleFonts.nunitoSans(
+            fontSize: 14,
+            color: Colors.black.withOpacity(0.55),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image(
+        image: imageProvider!,
+        height: 200,
+        width: double.infinity,
+        fit: BoxFit.cover,
       ),
     );
   }
