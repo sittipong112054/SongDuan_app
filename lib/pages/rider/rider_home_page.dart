@@ -78,7 +78,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
         _loadingCfg = false;
       });
       // โหลดลิสต์รอบหนึ่งเมื่อ config มา (ปกติทำอยู่แล้ว)
-      _fetchShipments();
+      _refreshAll();
     } catch (e) {
       setState(() {
         _cfgError = '$e';

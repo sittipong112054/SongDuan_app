@@ -10,7 +10,6 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:songduan_app/pages/rider/rider_home_page.dart';
 
 import 'package:songduan_app/services/session_service.dart';
 
@@ -55,8 +54,8 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
 
   // Status rules
   static const double kGateMeters = 20.0;
-  bool _pickedUp = false; // ถูกเซ็ตเมื่อกด “รับพัสดุแล้ว”
-  bool _actionBusy = false; // บล็อกปุ่มแอ็กชันเดียวระหว่างทำงาน
+  bool _pickedUp = false; // เซ็ตเมื่อ “รับพัสดุแล้ว”
+  bool _actionBusy = false; // บล็อกปุ่มหลักระหว่างทำงาน
 
   double? _distToPickup;
   double? _distToDrop;
@@ -70,10 +69,18 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
       _distToDrop != null &&
       _distToDrop! <= kGateMeters;
 
-  // Photos (แสดงพรีวิวล่าสุด)
+  // Photos preview
   final _picker = ImagePicker();
   File? _pickupPhotoFile;
   File? _deliverPhotoFile;
+
+  // ====== NAV STATE ======
+  bool _navToDrop = false; // false = ไป “รับ”, true = ไป “ส่ง”
+  List<LatLng> _routeLine = [];
+  String? _etaText; // ETA text
+  double? _routeDistanceMeters; // ระยะรวมจาก routing
+
+  LatLng get _target => _navToDrop ? widget.dropoff : widget.pickup;
 
   @override
   void initState() {
@@ -140,6 +147,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     }
 
     if (mounted) setState(() {});
+    _updateRoute(); // อัปเดตเส้นทางและ ETA ทุกครั้งที่ตำแหน่งเราเปลี่ยน
   }
 
   Future<bool> _ensurePermission() async {
@@ -178,7 +186,55 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     } catch (_) {}
   }
 
-  // ---------------- Photo upload helpers ----------------
+  // ---------------- Routing (OSRM public) ----------------
+  Future<void> _updateRoute() async {
+    if (_me == null) return;
+
+    final url = Uri.parse(
+      'https://router.project-osrm.org/route/v1/driving/'
+      '${_me!.longitude},${_me!.latitude};${_target.longitude},${_target.latitude}'
+      '?overview=full&geometries=geojson',
+    );
+
+    try {
+      final resp = await http.get(url).timeout(const Duration(seconds: 8));
+      if (resp.statusCode == 200) {
+        final m = jsonDecode(resp.body) as Map<String, dynamic>;
+        final routes = m['routes'] as List?;
+        if (routes != null && routes.isNotEmpty) {
+          final r = routes.first as Map<String, dynamic>;
+          final geo = r['geometry'] as Map<String, dynamic>;
+          final coords = (geo['coordinates'] as List)
+              .whereType<List>()
+              .map(
+                (e) =>
+                    LatLng((e[1] as num).toDouble(), (e[0] as num).toDouble()),
+              )
+              .toList();
+
+          setState(() {
+            _routeLine = coords;
+            _routeDistanceMeters = (r['distance'] as num?)?.toDouble();
+            final sec = (r['duration'] as num?)?.toDouble() ?? 0;
+            _etaText = _fmtEta(sec);
+          });
+        }
+      }
+    } catch (_) {
+      // เงียบไว้ กรณีออฟไลน์/เรียกไม่ติด
+    }
+  }
+
+  String _fmtEta(double seconds) {
+    if (seconds <= 0) return '-';
+    final m = (seconds / 60).round();
+    if (m < 60) return '$m นาที';
+    final h = m ~/ 60;
+    final mm = m % 60;
+    return '$h ชม ${mm} นาที';
+  }
+
+  // ---------------- Photo helpers ----------------
   Future<File?> _pickImage() async {
     final source = await Get.bottomSheet<ImageSource>(
       SafeArea(
@@ -257,7 +313,11 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
         .timeout(const Duration(seconds: 12));
 
     if (resp.statusCode == 200 || resp.statusCode == 201) {
-      setState(() => _pickedUp = true);
+      setState(() {
+        _pickedUp = true;
+        _navToDrop = true; // หลังรับแล้ว → นำทางไปจุดส่ง
+      });
+      _updateRoute();
       Get.snackbar(
         'อัปเดตแล้ว',
         'เริ่มนำส่งสินค้า',
@@ -282,18 +342,17 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
         .timeout(const Duration(seconds: 12));
 
     if (resp.statusCode == 200 || resp.statusCode == 201) {
-      // 1) ยกเลิกสตรีม/ไทเมอร์กันรั่ว
+      // หยุด stream/timer กันรั่ว
       try {
         await _posSub?.cancel();
       } catch (_) {}
       _tick?.cancel();
 
-      // 2) กลับ “หน้า Rider Home” พร้อมส่งสัญญาณให้รีเฟรช
-      Get.offAll(
-        () => const RiderHomePage(),
+      // กลับหน้าหลัก + refresh + snackbar
+      Get.offAllNamed(
+        '/rider/home',
         arguments: {'refresh': true, 'snack': 'จัดส่งสำเร็จแล้ว'},
       );
-
       return true;
     } else {
       final b = _safeJson(resp);
@@ -306,10 +365,9 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
 
   // ---------------- Single Action Button ----------------
   Future<void> _onAction() async {
-    // ถ้ายังไม่ pickup → ต้องอยู่ในระยะ pickup ก่อน
+    // ยังไม่ pickup → ต้องอยู่ในระยะ pickup ก่อน
     if (!_pickedUp) {
-      if (!_canPickup) return;
-      if (_actionBusy) return;
+      if (!_canPickup || _actionBusy) return;
 
       setState(() => _actionBusy = true);
       try {
@@ -327,10 +385,9 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
       return;
     }
 
-    // ถ้ารับแล้ว → ต้องอยู่ในระยะ dropoff ก่อน
+    // pickup แล้ว → ต้องอยู่ในระยะ dropoff ก่อน
     if (_pickedUp) {
-      if (!_canDeliver) return;
-      if (_actionBusy) return;
+      if (!_canDeliver || _actionBusy) return;
 
       setState(() => _actionBusy = true);
       try {
@@ -473,10 +530,22 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                                 ),
                               ],
                             ),
+                            // เส้นทาง
+                            PolylineLayer<Object>(
+                              polylines: _routeLine.isEmpty
+                                  ? const <Polyline<Object>>[]
+                                  : <Polyline<Object>>[
+                                      Polyline<Object>(
+                                        points: _routeLine,
+                                        strokeWidth: 6,
+                                        color: Colors.indigo.withOpacity(0.7),
+                                      ),
+                                    ],
+                            ),
                           ],
                         ),
 
-                        // distance box
+                        // distance & ETA box
                         Positioned(
                           left: 12,
                           right: 12,
@@ -503,26 +572,104 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                                 fontWeight: FontWeight.w800,
                                 color: Colors.black.withOpacity(0.75),
                               ),
-                              child: Row(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Expanded(
-                                    child: Text(
-                                      'ไปจุดรับ: ${_mLabel(_distToPickup)}',
-                                    ),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          'ไปจุดรับ: ${_mLabel(_distToPickup)}',
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Text(
+                                          'ไปจุดส่ง: ${_mLabel(_distToDrop)}',
+                                          textAlign: TextAlign.right,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  Expanded(
-                                    child: Text(
-                                      'ไปจุดส่ง: ${_mLabel(_distToDrop)}',
-                                      textAlign: TextAlign.right,
+                                  if (_etaText != null ||
+                                      _routeDistanceMeters != null) ...[
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            'เส้นทาง: ${_routeDistanceMeters == null ? '-' : _mLabel(_routeDistanceMeters)}',
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: Text(
+                                            'เวลาโดยประมาณ: ${_etaText ?? '-'}',
+                                            textAlign: TextAlign.right,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ),
+                                  ],
                                 ],
                               ),
                             ),
                           ),
                         ),
 
-                        // previews (ให้ไรเดอร์เช็กว่าถ่ายสำเร็จแล้ว)
+                        // ปุ่มสลับเป้าหมาย/รีเฟรชเส้นทาง (สลับได้หลังรับแล้ว)
+                        Positioned(
+                          right: 12,
+                          top: 74,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              const SizedBox(height: 8),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  if (!_pickedUp) {
+                                    return; // ยังไม่รับ → นำทางไปจุดรับอย่างเดียว
+                                  }
+                                  setState(() => _navToDrop = !_navToDrop);
+                                  _updateRoute();
+                                },
+                                icon: const Icon(Icons.swap_horiz_rounded),
+                                label: Text(
+                                  _navToDrop
+                                      ? 'นำทางไปจุดส่ง'
+                                      : 'นำทางไปจุดรับ',
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.black87,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                              ElevatedButton.icon(
+                                onPressed: _updateRoute,
+                                icon: const Icon(Icons.refresh_rounded),
+                                label: const Text('รีเฟรชเส้นทาง'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.black54,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // previews
                         Positioned(
                           left: 12,
                           right: 12,
@@ -546,7 +693,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                           ),
                         ),
 
-                        // single action button
+                        // single action button (ถ่ายรูป & รับ / ถ่ายรูป & ส่ง)
                         Positioned(
                           left: 12,
                           right: 12,
