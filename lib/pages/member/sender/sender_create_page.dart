@@ -359,7 +359,6 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
     if (_phoneCtrl.text.trim().isNotEmpty) {
       await _searchReceiver();
     }
-    if (mounted) _toast('อัปเดตข้อมูลแล้ว');
   }
 
   @override
