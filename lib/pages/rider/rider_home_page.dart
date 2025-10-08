@@ -57,6 +57,17 @@ class _RiderHomePageState extends State<RiderHomePage> {
       'MEMBER' => 'Member',
       _ => 'User',
     };
+
+    // ถ้ามาจากหน้านำส่งพร้อมให้รีเฟรช
+    if (args is Map && args['refresh'] == true) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final snack = args['snack']?.toString();
+        if (snack != null && snack.isNotEmpty) {
+          Get.snackbar('สำเร็จ', snack, snackPosition: SnackPosition.BOTTOM);
+        }
+        _fetchShipments(); // รีเฟรชลิสต์
+      });
+    }
   }
 
   Future<void> _loadConfig() async {
@@ -66,12 +77,8 @@ class _RiderHomePageState extends State<RiderHomePage> {
         _baseUrl = config['apiEndpoint'] as String?;
         _loadingCfg = false;
       });
-      if (!mounted) return;
-
-      // 👉 เช็กงานค้างก่อนเสมอ
-      await _checkActiveJob();
-      // แล้วค่อยโหลดงานว่าง
-      await _fetchShipments();
+      // โหลดลิสต์รอบหนึ่งเมื่อ config มา (ปกติทำอยู่แล้ว)
+      _fetchShipments();
     } catch (e) {
       setState(() {
         _cfgError = '$e';
@@ -414,6 +421,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
                             .toString(),
                     placeName: (dropoff['label'] ?? '—').toString(),
                   ),
+                  showStatus: false,
                 ),
                 const SizedBox(height: 20),
 
@@ -447,7 +455,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
                             )
                           : const Icon(Icons.task_alt_rounded, size: 18),
                       label: Text(
-                        isLoading ? 'กำลังรับงาน...' : 'รับงานนี้',
+                        isLoading ? 'กำลังรับงาน...' : 'ยืนยันรับงานนี้',
                         style: GoogleFonts.notoSansThai(
                           fontWeight: FontWeight.w900,
                           fontSize: 15,
