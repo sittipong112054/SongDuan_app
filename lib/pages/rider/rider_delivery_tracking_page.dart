@@ -10,6 +10,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:songduan_app/pages/rider/rider_home_page.dart';
 
 import 'package:songduan_app/services/session_service.dart';
 
@@ -349,10 +350,11 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
       _tick?.cancel();
 
       // กลับหน้าหลัก + refresh + snackbar
-      Get.offAllNamed(
-        '/rider/home',
+      Get.offAll(
+        () => const RiderHomePage(),
         arguments: {'refresh': true, 'snack': 'จัดส่งสำเร็จแล้ว'},
       );
+
       return true;
     } else {
       final b = _safeJson(resp);
