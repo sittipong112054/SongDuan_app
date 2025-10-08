@@ -123,11 +123,10 @@ class _ReceiverListPageState extends State<ReceiverListPage> {
     }
   }
 
-  // ---------------- Helpers ----------------
   String _mockDistance(dynamic seed) {
     final i = (seed is int) ? seed : 1;
     final km = (1.2 + (i * 0.8) + Random(i).nextDouble()).toStringAsFixed(1);
-    return '$km กม.';
+    return 'ระยะทาง $km กม.';
   }
 
   String _joinBase(String base, String rel) {
@@ -204,7 +203,6 @@ class _ReceiverListPageState extends State<ReceiverListPage> {
     );
   }
 
-  // ---------------- UI ----------------
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
@@ -241,25 +239,21 @@ class _ReceiverListPageState extends State<ReceiverListPage> {
             ),
           ] else ...[
             ..._items.map((m) {
-              final ImageProvider? senderAvatarProv =
-                  m['sender_avatar_provider'] as ImageProvider?;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Stack(
                   children: [
-                    // ถ้า OrderCard ของคุณรับ imagePath เป็น URL อยู่แล้ว ส่ง m['image'] ได้เลย
                     OrderCard(
                       title: m['title'] as String,
                       from: m['from'] as String,
                       to: m['to'] as String,
                       distanceText: m['distance'] as String,
-                      imagePath: m['image'] as String?, // URL (หรือ null)
+                      imagePath: m['image'] as String?,
                       status: m['status'] as OrderStatus,
                       onDetail: () => _openDetail(m),
                     ),
 
-                    // วาง avatar ผู้ส่งทับมุมซ้ายบน
-                    if (senderAvatarProv != null)
+                    if (m['sender_avatar'] != null)
                       Positioned(
                         top: 8,
                         left: 8,
@@ -278,7 +272,9 @@ class _ReceiverListPageState extends State<ReceiverListPage> {
                           ),
                           child: CircleAvatar(
                             radius: 16,
-                            backgroundImage: senderAvatarProv,
+                            backgroundImage: NetworkImage(
+                              m['sender_avatar'] as String,
+                            ),
                             backgroundColor: Colors.grey.shade200,
                           ),
                         ),
@@ -294,7 +290,6 @@ class _ReceiverListPageState extends State<ReceiverListPage> {
   }
 }
 
-// --------- ชิ้นส่วน UI เล็ก ๆ ----------
 class _LoadingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {

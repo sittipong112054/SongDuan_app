@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:developer';
+// import 'dart:developer';
 
 import 'package:flutter/foundation.dart';
 
@@ -12,6 +12,7 @@ import 'package:songduan_app/pages/member/member_home_page.dart';
 import 'package:songduan_app/pages/register_page.dart';
 import 'package:songduan_app/pages/rider/rider_home_page.dart';
 import 'package:songduan_app/pages/welcome_page.dart';
+import 'package:songduan_app/services/session_service.dart';
 import 'package:songduan_app/widgets/custom_text_field.dart';
 import 'package:songduan_app/widgets/gradient_button.dart';
 
@@ -259,7 +260,7 @@ class _LoginPagesState extends State<LoginPages> {
     setState(() => _loading = true);
     FocusScope.of(context).unfocus();
 
-    var config = await Configuration.getConfig();
+    final config = await Configuration.getConfig();
     _baseUrl = config['apiEndpoint'];
 
     try {
@@ -279,26 +280,85 @@ class _LoginPagesState extends State<LoginPages> {
           .timeout(const Duration(seconds: 20));
 
       final text = utf8.decode(resp.bodyBytes);
-      final Map<String, dynamic> data = text.isEmpty
+      final Map<String, dynamic> raw = text.isEmpty
           ? <String, dynamic>{}
           : (jsonDecode(text) as Map<String, dynamic>);
 
       if (resp.statusCode == 200) {
-        final role = (data['role'] ?? '').toString().toUpperCase();
+        // ---------- ยุบ response ให้เป็นรูปเดียวกัน ----------
+        // รองรับทั้ง:
+        // { data: { user:{...}, token:"..." } }  หรือ  { id, role, name, phone, avatar_path, token }
+        Map<String, dynamic> user = {};
+        String? token;
 
+        if (raw['data'] is Map) {
+          final d = raw['data'] as Map;
+          if (d['user'] is Map) {
+            user = Map<String, dynamic>.from(d['user'] as Map);
+          }
+          if (d['token'] != null) token = d['token'].toString();
+        } else {
+          user = raw;
+          if (raw['token'] != null) token = raw['token'].toString();
+        }
+
+        // กันค่าที่สำคัญว่าง
+        final role = (user['role'] ?? raw['role'] ?? '')
+            .toString()
+            .toUpperCase();
+        final idStr = (user['id'] ?? raw['id'] ?? '').toString();
+        final int? uid = int.tryParse(idStr);
+
+        if (uid == null || role.isEmpty) {
+          Get.snackbar(
+            'เข้าสู่ระบบไม่สำเร็จ',
+            'ข้อมูลผู้ใช้ไม่ครบ',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+          setState(() => _loading = false);
+          return;
+        }
+
+        // ---------- เซฟ Session ----------
+        final ss = Get.find<SessionService>();
+        ss.saveFromLoginResponse({
+          'data': {
+            'user': {
+              'id': uid,
+              'role': role,
+              'name': user['name'] ?? raw['name'],
+              'phone': user['phone'] ?? raw['phone'],
+              'avatar_path': user['avatar_path'] ?? raw['avatar_path'],
+              'username': user['username'] ?? raw['username'],
+            },
+            'token': token,
+          },
+        });
+
+        // ---------- แจ้งเตือน + นำทาง ----------
         Get.snackbar(
           'เข้าสู่ระบบสำเร็จ',
-          'ยินดีต้อนรับ ${data['username'] ?? identifier}',
+          'ยินดีต้อนรับ ${user['username'] ?? user['name'] ?? identifier}',
           snackPosition: SnackPosition.BOTTOM,
           duration: const Duration(seconds: 1),
         );
 
-        _goByRole(role, userData: data);
-        log(data.toString());
+        _goByRole(
+          role,
+          userData: {
+            'id': uid,
+            'role': role,
+            'name': user['name'] ?? '',
+            'username': user['username'] ?? '',
+            'phone': user['phone'] ?? '',
+            'avatar_path': user['avatar_path'] ?? '',
+          },
+        );
         return;
       }
 
-      final err = data['error'];
+      // ---------- กรณี error ----------
+      final err = raw['error'];
       final errMsg = (err is Map && err['message'] is String)
           ? err['message'] as String
           : 'เข้าสู่ระบบไม่สำเร็จ (HTTP ${resp.statusCode})';

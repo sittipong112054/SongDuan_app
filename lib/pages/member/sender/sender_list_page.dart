@@ -4,9 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
-
-// import 'package:songduan_app/services/mock_realtime_service.dart';
-
 import 'package:songduan_app/services/session_service.dart';
 import 'package:songduan_app/widgets/order_card.dart';
 import 'package:songduan_app/widgets/order_detail_card.dart';
@@ -67,7 +64,6 @@ class _SenderListPageState extends State<SenderListPage> {
               ? '${distanceKm.toStringAsFixed(1)} กม.'
               : _mockDistance(x['id'] ?? 0);
 
-          // cover image (สินค้ารวม/หลักฐานตอนเริ่ม)
           final cover =
               (x['cover_file_path'] ?? x['file_path'] ?? '') as String;
           final imagePath = cover.trim().isEmpty
@@ -76,7 +72,6 @@ class _SenderListPageState extends State<SenderListPage> {
                     ? cover
                     : _joinBase(widget.baseUrl, cover));
 
-          // sender avatar
           final rawSenderAvatar = (x['sender']?['avatar_path'] ?? '') as String;
           final senderAvatar = rawSenderAvatar.trim().isEmpty
               ? null
@@ -84,7 +79,6 @@ class _SenderListPageState extends State<SenderListPage> {
                     ? rawSenderAvatar
                     : _joinBase(widget.baseUrl, rawSenderAvatar));
 
-          // receiver avatar (ไว้ใช้ในรายละเอียด)
           final rawReceiverAvatar =
               (x['receiver']?['avatar_path'] ?? '') as String;
           final receiverAvatar = rawReceiverAvatar.trim().isEmpty
@@ -128,11 +122,10 @@ class _SenderListPageState extends State<SenderListPage> {
     }
   }
 
-  // ---------------- Helpers ----------------
   String _mockDistance(dynamic seed) {
     final i = (seed is int) ? seed : 1;
     final km = (1.2 + (i * 0.8) + Random(i).nextDouble()).toStringAsFixed(1);
-    return '$km กม.';
+    return 'ระยะทาง $km กม.';
   }
 
   String _joinBase(String base, String rel) {
@@ -148,7 +141,7 @@ class _SenderListPageState extends State<SenderListPage> {
       case 'RIDER_ACCEPTED':
         return OrderStatus.riderAccepted;
       case 'PICKED_UP_EN_ROUTE':
-        return OrderStatus.delivering; // ปรับตาม enum ในแอปคุณ
+        return OrderStatus.delivering;
       case 'DELIVERED':
         return OrderStatus.delivered;
       default:
@@ -209,7 +202,6 @@ class _SenderListPageState extends State<SenderListPage> {
     );
   }
 
-  // ---------------- UI ----------------
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
@@ -246,13 +238,10 @@ class _SenderListPageState extends State<SenderListPage> {
             ),
           ] else ...[
             ..._items.map((m) {
-              final ImageProvider? senderAvatarProv =
-                  m['sender_avatar_provider'] as ImageProvider?;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Stack(
                   children: [
-                    // ถ้า OrderCard ของคุณรับ imagePath เป็น URL อยู่แล้ว ส่ง m['image'] ได้เลย
                     OrderCard(
                       title: m['title'] as String,
                       from: m['from'] as String,
@@ -263,8 +252,7 @@ class _SenderListPageState extends State<SenderListPage> {
                       onDetail: () => _openDetail(m),
                     ),
 
-                    // วาง avatar ผู้ส่งทับมุมซ้ายบน
-                    if (senderAvatarProv != null)
+                    if (m['receiver_avatar'] != null)
                       Positioned(
                         top: 8,
                         left: 8,
@@ -283,7 +271,9 @@ class _SenderListPageState extends State<SenderListPage> {
                           ),
                           child: CircleAvatar(
                             radius: 16,
-                            backgroundImage: senderAvatarProv,
+                            backgroundImage: NetworkImage(
+                              m['receiver_avatar'] as String,
+                            ),
                             backgroundColor: Colors.grey.shade200,
                           ),
                         ),
@@ -299,7 +289,6 @@ class _SenderListPageState extends State<SenderListPage> {
   }
 }
 
-// --------- ชิ้นส่วน UI เล็ก ๆ ----------
 class _LoadingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {

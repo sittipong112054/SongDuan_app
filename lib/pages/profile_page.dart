@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:songduan_app/config/config.dart';
 import 'package:songduan_app/pages/login_page.dart';
 import 'package:songduan_app/pages/member/add_location_page.dart';
+import 'package:songduan_app/services/session_service.dart';
 import 'package:songduan_app/widgets/gradient_button.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -484,14 +485,43 @@ class _ProfilePageState extends State<ProfilePage> {
           child: GradientButton(
             text: 'ออกจากระบบ',
             onTap: () {
-              // เคลียร์ session/states ตามจริงก่อน (ถ้ามี)
-              Get.snackbar('ออกจากระบบ', 'ทำการออกจากระบบแล้ว');
-              Get.offAll(() => const LoginPages());
+              logout();
             },
           ),
         ),
       ),
     );
+  }
+
+  Future<void> logout() async {
+    try {
+      // ล้างข้อมูลผู้ใช้ใน storage
+      // final prefs = await SharedPreferences.getInstance();
+      // await prefs.clear();
+
+      Get.find<SessionService>().clear();
+
+      // ปิดทุกหน้าที่เปิดอยู่ แล้วกลับไปหน้า WelcomePage
+      Get.offAll(
+        () => const LoginPages(),
+        transition: Transition.fadeIn,
+        // duration: const Duration(milliseconds: 800),
+      );
+
+      // แจ้งเตือน
+      Get.snackbar(
+        'ออกจากระบบสำเร็จ',
+        'คุณได้ออกจากระบบเรียบร้อยแล้ว',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+      );
+    } catch (e) {
+      Get.snackbar(
+        'เกิดข้อผิดพลาด',
+        'ไม่สามารถออกจากระบบได้: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
   }
 }
 
