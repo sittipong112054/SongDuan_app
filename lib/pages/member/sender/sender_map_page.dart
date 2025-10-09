@@ -369,7 +369,7 @@ class _SenderMapPageState extends State<SenderMapPage> {
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Text(
-                  'ยังไม่มีงานขาเข้าที่กำลังนำส่ง',
+                  'ยังไม่มีงานขาออกที่กำลังนำส่ง',
                   style: GoogleFonts.notoSansThai(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
