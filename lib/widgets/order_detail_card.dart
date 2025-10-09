@@ -17,8 +17,7 @@ class OrderDetailCard extends StatelessWidget {
   final String productName;
   final PersonInfo sender;
   final PersonInfo receiver;
-  final String?
-  imagePath; // 👉 ควรเป็น URL (http/https) ถ้าไม่ใช่จะ fallback icon
+  final String? imagePath;
   final OrderStatus status;
   final bool showStatus;
 
@@ -234,7 +233,6 @@ class OrderDetailCard extends StatelessWidget {
 }
 
 class PersonInfo {
-  /// avatar ควรเป็น URL (http/https) ถ้าไม่ใช่จะ fallback เป็น default icon
   final String avatar;
   final String role;
   final String name;
@@ -276,7 +274,6 @@ class _PersonBlock extends StatelessWidget {
         child: const SizedBox.shrink(),
       );
     } else {
-      // ถ้าไม่ใช่ URL → ใช้ icon เอง (กันพัง)
       avatarWidget = CircleAvatar(
         radius: 20,
         backgroundColor: Colors.grey.shade300,

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -83,6 +84,9 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
 
   LatLng get _target => _navToDrop ? widget.dropoff : widget.pickup;
 
+  double? _lastHeadingDegFromSensor;
+  double? _lastSpeedMpsFromSensor;
+
   @override
   void initState() {
     super.initState();
@@ -113,12 +117,15 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
       );
       _onPosition(LatLng(pos.latitude, pos.longitude));
 
-      _posSub = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.best,
-          distanceFilter: 3, // อัปเดตเมื่อเคลื่อน ≥ 3 เมตร
-        ),
-      ).listen((p) => _onPosition(LatLng(p.latitude, p.longitude)));
+      _posSub =
+          Geolocator.getPositionStream(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.best,
+              distanceFilter: 3,
+            ),
+          ).listen((p) {
+            _onPosition(LatLng(p.latitude, p.longitude), raw: p);
+          });
 
       // ส่งตำแหน่งขึ้น backend ทุก 5 วิ
       _tick = Timer.periodic(
@@ -133,12 +140,18 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     }
   }
 
-  void _onPosition(LatLng latlng) {
+  void _onPosition(LatLng latlng, {Position? raw}) {
     _me = latlng;
     _loading = false;
 
     _distToPickup = _distanceMeters(latlng, widget.pickup);
     _distToDrop = _distanceMeters(latlng, widget.dropoff);
+
+    // เก็บค่า sensor จาก Position (เรียกตรงนี้ตอน listen stream)
+    if (raw != null) {
+      _lastHeadingDegFromSensor = raw.heading; // อาจเป็น -1
+      _lastSpeedMpsFromSensor = raw.speed; // m/s
+    }
 
     if (_mapReady) {
       _map.move(latlng, 16);
@@ -148,7 +161,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     }
 
     if (mounted) setState(() {});
-    _updateRoute(); // อัปเดตเส้นทางและ ETA ทุกครั้งที่ตำแหน่งเราเปลี่ยน
+    _updateRoute();
   }
 
   Future<bool> _ensurePermission() async {
@@ -166,8 +179,50 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     return true;
   }
 
+  LatLng? _lastSent; // เก็บพิกัดล่าสุดที่ “ส่งขึ้นเซิร์ฟเวอร์”
+  DateTime? _lastSentAt;
+
+  double _bearingDegrees(LatLng a, LatLng b) {
+    final lat1 = a.latitude * (pi / 180.0);
+    final lat2 = b.latitude * (pi / 180.0);
+    final dLon = (b.longitude - a.longitude) * (pi / 180.0);
+    final y = sin(dLon) * cos(lat2);
+    final x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon);
+    final brng = atan2(y, x) * 180.0 / pi;
+    return (brng + 360.0) % 360.0;
+  }
+
   Future<void> _sendLocation() async {
     if (_me == null) return;
+
+    double? headingDeg = _lastHeadingDegFromSensor; // set ใน _onPosition
+    double? speedMps = _lastSpeedMpsFromSensor; // set ใน _onPosition
+
+    final now = DateTime.now();
+    if ((headingDeg == null || headingDeg.isNaN || headingDeg < 0) &&
+        _lastSent != null) {
+      headingDeg = _bearingDegrees(_lastSent!, _me!);
+    }
+    if ((speedMps == null || speedMps.isNaN || speedMps <= 0) &&
+        _lastSent != null &&
+        _lastSentAt != null) {
+      final dt = now.difference(_lastSentAt!).inMilliseconds / 1000.0;
+      if (dt > 0) {
+        final d = _distanceMeters(_lastSent!, _me!);
+        speedMps = d / dt; // m/s
+      }
+    }
+
+    // ปัดเลขให้ payload เล็กลง
+    double round(double v, [int p = 6]) => double.parse(v.toStringAsFixed(p));
+    Map<String, dynamic> payload = {
+      'lat': round(_me!.latitude, 7),
+      'lng': round(_me!.longitude, 7),
+      'shipment_id': widget.shipmentId,
+      if (headingDeg != null) 'heading_deg': round((headingDeg + 360) % 360, 2),
+      if (speedMps != null) 'speed_mps': round(speedMps, 2),
+    };
+
     try {
       final riderId = Get.find<SessionService>().currentUserId;
       if (riderId == null) return;
@@ -178,12 +233,11 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
       await http.post(
         uri,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'lat': _me!.latitude,
-          'lng': _me!.longitude,
-          'shipment_id': widget.shipmentId,
-        }),
+        body: jsonEncode(payload),
       );
+
+      _lastSent = _me;
+      _lastSentAt = now;
     } catch (_) {}
   }
 
@@ -232,7 +286,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     if (m < 60) return '$m นาที';
     final h = m ~/ 60;
     final mm = m % 60;
-    return '$h ชม ${mm} นาที';
+    return '$h ชม $mm นาที';
   }
 
   // ---------------- Photo helpers ----------------
@@ -349,11 +403,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
       } catch (_) {}
       _tick?.cancel();
 
-      // กลับหน้าหลัก + refresh + snackbar
-      Get.offAll(
-        () => const RiderHomePage(),
-        arguments: {'refresh': true, 'snack': 'จัดส่งสำเร็จแล้ว'},
-      );
+      Get.offAll(() => const RiderHomePage());
 
       return true;
     } else {
@@ -539,8 +589,18 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                                   : <Polyline<Object>>[
                                       Polyline<Object>(
                                         points: _routeLine,
-                                        strokeWidth: 6,
-                                        color: Colors.indigo.withOpacity(0.7),
+                                        strokeWidth: 7,
+                                        color: _pickedUp
+                                            ? Colors.greenAccent.withOpacity(
+                                                0.8,
+                                              ) // ไปส่ง
+                                            : Colors.blueAccent.withOpacity(
+                                                0.8,
+                                              ), // ไปเก็บ
+                                        borderStrokeWidth: 2.5,
+                                        borderColor: Colors.black.withOpacity(
+                                          0.2,
+                                        ),
                                       ),
                                     ],
                             ),

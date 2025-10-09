@@ -6,10 +6,13 @@ class DeliveryStatusCard extends StatelessWidget {
   final int number;
   final Color badgeColor;
   final String title;
-  final String by;
+  final String by; // ชื่อไรเดอร์
   final String from;
   final String to;
   final OrderStatus status;
+
+  /// URL รูปโปรไฟล์ของ "by" (เช่น ไรเดอร์) - ไม่บังคับ
+  final String? byAvatarUrl;
 
   const DeliveryStatusCard({
     super.key,
@@ -20,6 +23,8 @@ class DeliveryStatusCard extends StatelessWidget {
     required this.from,
     required this.to,
     required this.status,
+    this.byAvatarUrl,
+    required Null Function() onTap,
   });
 
   @override
@@ -40,6 +45,7 @@ class DeliveryStatusCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header: หมายเลขชุด + ชื่อรายการ + ผู้ขนส่ง (มีรูป)
           Row(
             children: [
               _CircleNumber(n: number, color: badgeColor),
@@ -47,14 +53,29 @@ class DeliveryStatusCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.notoSansThai(
                     fontSize: 16,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
+              if (byAvatarUrl != null && byAvatarUrl!.trim().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: CircleAvatar(
+                    radius: 12,
+                    backgroundColor: Colors.white,
+                    backgroundImage: NetworkImage(byAvatarUrl!),
+                    onBackgroundImageError: (_, __) {},
+                  ),
+                ),
               Text(
                 'โดย $by',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.notoSansThai(
                   color: Colors.black54,
                   fontWeight: FontWeight.w700,
@@ -63,6 +84,7 @@ class DeliveryStatusCard extends StatelessWidget {
               ),
             ],
           ),
+
           const SizedBox(height: 10),
           StatusStepBar(status: status),
           const SizedBox(height: 10),
@@ -138,13 +160,13 @@ class StatusStepBar extends StatelessWidget {
 
   int get activeIndex => switch (status) {
     OrderStatus.waitingPickup => 0, // เข้ารับสินค้า
-    OrderStatus.riderAccepted => 0, // เข้ารับสินค้า (ยังอยู่ช่วงรับ)
+    OrderStatus.riderAccepted => 0, // ยังอยู่ช่วงเข้ารับ
     OrderStatus.delivering => 1, // กำลังส่ง
     OrderStatus.delivered => 2, // สำเร็จ
   };
 
   List<Color> get activePair => switch (status) {
-    OrderStatus.waitingPickup => [Colors.grey.shade400, Colors.grey.shade600],
+    OrderStatus.waitingPickup => [Colors.grey, Colors.grey.shade700],
     OrderStatus.riderAccepted => [Colors.blue.shade400, Colors.blue.shade700],
     OrderStatus.delivering => [
       Colors.orange.shade400,

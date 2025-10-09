@@ -35,7 +35,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
   bool _loadingCfg = true;
 
   // header user
-  late final Map<String, dynamic> _user;
+  late Map<String, dynamic> _user = {};
   late final String _name;
   late final String _roleLabel;
 
@@ -46,28 +46,28 @@ class _RiderHomePageState extends State<RiderHomePage> {
   void initState() {
     super.initState();
     _loadConfig();
+    _loadSessionInfo();
+  }
 
-    final args = Get.arguments;
-    _user = (args is Map<String, dynamic>) ? args : <String, dynamic>{};
-    _name = (_user['name'] ?? _user['username'] ?? 'ผู้ใช้').toString();
+  void _loadSessionInfo() {
+    final session = Get.find<SessionService>();
 
-    final role = (_user['role'] ?? '').toString().toUpperCase();
+    _user = {
+      'id': session.currentUserId,
+      'role': session.role,
+      'name': session.name,
+      'phone': session.phone,
+      'avatar_path': session.avatarPath,
+    };
+    _name = session.name ?? 'ผู้ใช้';
+    final role = (session.role ?? '').toUpperCase();
     _roleLabel = switch (role) {
       'RIDER' => 'Rider',
       'MEMBER' => 'Member',
       _ => 'User',
     };
 
-    // ถ้ามาจากหน้านำส่งพร้อมให้รีเฟรช
-    if (args is Map && args['refresh'] == true) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final snack = args['snack']?.toString();
-        if (snack != null && snack.isNotEmpty) {
-          Get.snackbar('สำเร็จ', snack, snackPosition: SnackPosition.BOTTOM);
-        }
-        _fetchShipments(); // รีเฟรชลิสต์
-      });
-    }
+    _fetchShipments();
   }
 
   Future<void> _loadConfig() async {
@@ -548,7 +548,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
                           from: m['from'] as String,
                           to: m['to'] as String,
                           distanceText: m['distance'] as String,
-                          imagePath: m['image'] as String?, // network url
+                          imagePath: m['image'] as String?,
                           status: _mapStatus((m['status'] ?? '').toString()),
                           onDetail: () => _openDetail(m),
                         ),
