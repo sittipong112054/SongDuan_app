@@ -12,6 +12,8 @@ class OrderDetailCard extends StatelessWidget {
     this.imagePath,
     required this.status,
     this.showStatus = true,
+    this.pickupPhotoUrl, // รูปตอนรับ (จาก backend)
+    this.deliverPhotoUrl, // รูปตอนส่ง (จาก backend)
   });
 
   final String productName;
@@ -20,6 +22,8 @@ class OrderDetailCard extends StatelessWidget {
   final String? imagePath;
   final OrderStatus status;
   final bool showStatus;
+  final String? pickupPhotoUrl;
+  final String? deliverPhotoUrl;
 
   static const _textDark = Color(0xFF2F2F2F);
 
@@ -68,6 +72,63 @@ class OrderDetailCard extends StatelessWidget {
     return v.startsWith('http://') || v.startsWith('https://');
   }
 
+  void _openImage(String url, {String? title}) {
+    Get.dialog(
+      Dialog(
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const SizedBox(
+                    height: 320,
+                    child: Center(
+                      child: Icon(Icons.broken_image_outlined, size: 48),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 8,
+              top: 8,
+              child: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: Get.back,
+              ),
+            ),
+            if (title != null && title.isNotEmpty)
+              Positioned(
+                left: 12,
+                bottom: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black87,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    title,
+                    style: GoogleFonts.notoSansThai(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+      barrierDismissible: true,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = _mapStatusToColors(status);
@@ -88,6 +149,7 @@ class OrderDetailCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Header
           Row(
             children: [
               IconButton(
@@ -126,7 +188,7 @@ class OrderDetailCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          // รูปสินค้า (NetworkImage)
+          // Cover / hero image
           Center(
             child: Container(
               width: 210,
@@ -179,6 +241,7 @@ class OrderDetailCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
 
+          // Sender
           Text(
             sender.placeName,
             style: GoogleFonts.notoSansThai(
@@ -192,6 +255,7 @@ class OrderDetailCard extends StatelessWidget {
 
           const SizedBox(height: 14),
 
+          // Receiver
           Text(
             receiver.placeName,
             style: GoogleFonts.notoSansThai(
@@ -205,7 +269,9 @@ class OrderDetailCard extends StatelessWidget {
 
           const SizedBox(height: 18),
 
-          if (showStatus)
+          // แถบสถานะ
+          // แถบสถานะ + ภาพสถานะ
+          if (showStatus) ...[
             Center(
               child: Container(
                 padding: const EdgeInsets.symmetric(
@@ -226,6 +292,38 @@ class OrderDetailCard extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+
+            // ====== รูปสถานะ (ตอนรับ / ตอนส่ง) ======
+            Text(
+              'รูปสถานะ',
+              style: GoogleFonts.notoSansThai(
+                fontSize: 15.5,
+                fontWeight: FontWeight.w900,
+                color: _textDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _StatusPhotoTile(
+                    title: 'ตอนรับ',
+                    url: pickupPhotoUrl,
+                    onTap: (u) => _openImage(u, title: 'รูปตอนรับ'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _StatusPhotoTile(
+                    title: 'ตอนส่ง',
+                    url: deliverPhotoUrl,
+                    onTap: (u) => _openImage(u, title: 'รูปตอนส่ง'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -233,7 +331,7 @@ class OrderDetailCard extends StatelessWidget {
 }
 
 class PersonInfo {
-  final String avatar;
+  final String avatar; // network url หรือ asset fallback
   final String role;
   final String name;
   final String phone;
@@ -271,7 +369,12 @@ class _PersonBlock extends StatelessWidget {
         backgroundColor: Colors.grey.shade200,
         backgroundImage: NetworkImage(info.avatar),
         onBackgroundImageError: (_, __) {},
-        child: const SizedBox.shrink(),
+      );
+    } else if (info.avatar.startsWith('assets/')) {
+      avatarWidget = CircleAvatar(
+        radius: 20,
+        backgroundImage: AssetImage(info.avatar),
+        backgroundColor: Colors.grey.shade200,
       );
     } else {
       avatarWidget = CircleAvatar(
@@ -330,6 +433,90 @@ class _PersonBlock extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _StatusPhotoTile extends StatelessWidget {
+  const _StatusPhotoTile({
+    required this.title,
+    required this.url,
+    required this.onTap,
+  });
+
+  final String title;
+  final String? url;
+  final void Function(String url) onTap;
+
+  bool _isHttpUrl(String? s) {
+    if (s == null) return false;
+    final v = s.trim().toLowerCase();
+    return v.startsWith('http://') || v.startsWith('https://');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final has = _isHttpUrl(url);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: GoogleFonts.notoSansThai(fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 6),
+        AspectRatio(
+          aspectRatio: 1.6,
+          child: InkWell(
+            onTap: has ? () => onTap(url!) : null,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F2F5),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.black.withOpacity(0.06)),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: has
+                  ? Image.network(
+                      url!,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (c, w, p) {
+                        if (p == null) return w;
+                        return const Center(
+                          child: SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        );
+                      },
+                      errorBuilder: (_, __, ___) =>
+                          const _PhotoPlaceholder(text: 'โหลดรูปไม่สำเร็จ'),
+                    )
+                  : const _PhotoPlaceholder(text: 'ยังไม่มีรูป'),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PhotoPlaceholder extends StatelessWidget {
+  const _PhotoPlaceholder({required this.text});
+  final String text;
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        text,
+        style: GoogleFonts.notoSansThai(
+          color: Colors.black54,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }

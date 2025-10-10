@@ -11,14 +11,15 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:songduan_app/pages/rider/rider_home_page.dart';
 
+import 'package:songduan_app/pages/rider/rider_home_page.dart';
 import 'package:songduan_app/services/session_service.dart';
 
 class RiderDeliveryTrackingPage extends StatefulWidget {
   final String baseUrl;
   final int shipmentId;
 
+  // fallback (ถ้า GET /shipments/:id สำเร็จ จะใช้ข้อมูลจาก backend เป็นหลัก)
   final LatLng pickup;
   final LatLng dropoff;
   final String? pickupLabel;
@@ -40,57 +41,76 @@ class RiderDeliveryTrackingPage extends StatefulWidget {
 }
 
 class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
-  // Map
+  // ===== Map =====
   final MapController _map = MapController();
   bool _mapReady = false;
   LatLng? _pendingCenter;
   double _pendingZoom = 16;
 
-  // Location state
+  // ===== Location =====
   LatLng? _me;
   bool _loading = true;
   String? _error;
 
-  Timer? _tick;
+  Timer? _tick; // ส่งตำแหน่งขึ้น backend
   StreamSubscription<Position>? _posSub;
 
-  // Status rules
+  // ===== Shipment status =====
+  // เกณฑ์เข้า-ออกโซน
   static const double kGateMeters = 20.0;
-  bool _pickedUp = false; // เซ็ตเมื่อ “รับพัสดุแล้ว”
-  bool _actionBusy = false; // บล็อกปุ่มหลักระหว่างทำงาน
+
+  // phase: false = ไปรับ, true = ไปส่ง
+  bool _pickedUp = false;
+  bool _actionBusy = false;
 
   double? _distToPickup;
   double? _distToDrop;
 
   bool get _canPickup =>
       _me != null && _distToPickup != null && _distToPickup! <= kGateMeters;
-
   bool get _canDeliver =>
       _pickedUp &&
       _me != null &&
       _distToDrop != null &&
       _distToDrop! <= kGateMeters;
 
-  // Photos preview
+  // ===== Photo preview =====
   final _picker = ImagePicker();
   File? _pickupPhotoFile;
   File? _deliverPhotoFile;
 
-  // ====== NAV STATE ======
-  bool _navToDrop = false; // false = ไป “รับ”, true = ไป “ส่ง”
+  // จากเซิร์ฟเวอร์
+  String? _pickupPhotoUrl;
+  String? _deliverPhotoUrl;
+
+  // ===== Navigation state (routing) =====
+  bool _navToDrop = false; // false = นำทางไปจุดรับ, true = นำทางไปจุดส่ง
   List<LatLng> _routeLine = [];
-  String? _etaText; // ETA text
-  double? _routeDistanceMeters; // ระยะรวมจาก routing
+  String? _etaText;
+  double? _routeDistanceMeters;
 
-  LatLng get _target => _navToDrop ? widget.dropoff : widget.pickup;
+  LatLng get _target => _navToDrop ? _dropoff : _pickup;
 
+  // pickup/dropoff อาจอัปเดตจาก backend เมื่อ bootstrap
+  late LatLng _pickup;
+  late LatLng _dropoff;
+  String? _pickupLabel;
+  String? _dropoffLabel;
+
+  // ===== sensor enrich =====
   double? _lastHeadingDegFromSensor;
   double? _lastSpeedMpsFromSensor;
 
   @override
   void initState() {
     super.initState();
-    _initLocation();
+    _pickup = widget.pickup;
+    _dropoff = widget.dropoff;
+    _pickupLabel = widget.pickupLabel;
+    _dropoffLabel = widget.dropoffLabel;
+
+    // โหลดสถานะจาก backend ก่อน → แล้วค่อยเปิด location stream
+    _bootstrap();
   }
 
   @override
@@ -100,7 +120,80 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     super.dispose();
   }
 
-  // ---------------- Location & Loop ----------------
+  // ================= Bootstrap =================
+  Future<void> _bootstrap() async {
+    await _loadShipmentStatus(); // sync สถานะ/พิกัด/รูป ล่าสุด
+    if (!mounted) return;
+    await _initLocation(); // แล้วค่อยเริ่ม location + push loop
+  }
+
+  Future<void> _loadShipmentStatus() async {
+    try {
+      final uri = Uri.parse('${widget.baseUrl}/shipments/${widget.shipmentId}');
+      final resp = await http.get(uri).timeout(const Duration(seconds: 10));
+      if (resp.statusCode == 200) {
+        final body =
+            jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+        final data = body['data'] as Map<String, dynamic>?;
+
+        final status = (data?['status'] ?? '').toString();
+
+        // อัปเดต pickup/dropoff จาก backend (ถ้ามี)
+        try {
+          final p = data?['pickup'] as Map<String, dynamic>?;
+          final d = data?['dropoff'] as Map<String, dynamic>?;
+          if (p != null && p['lat'] != null && p['lng'] != null) {
+            _pickup = LatLng(
+              (p['lat'] as num).toDouble(),
+              (p['lng'] as num).toDouble(),
+            );
+            _pickupLabel = (p['label'] ?? _pickupLabel)?.toString();
+          }
+          if (d != null && d['lat'] != null && d['lng'] != null) {
+            _dropoff = LatLng(
+              (d['lat'] as num).toDouble(),
+              (d['lng'] as num).toDouble(),
+            );
+            _dropoffLabel = (d['label'] ?? _dropoffLabel)?.toString();
+          }
+        } catch (_) {}
+
+        // รูปจาก DB
+        String? pickupPath = (data?['pickup_photo_path'] as String?)?.trim();
+        String? deliverPath = (data?['deliver_photo_path'] as String?)?.trim();
+        String toAbs(String? p) {
+          if (p == null || p.isEmpty) return '';
+          if (p.startsWith('http://') || p.startsWith('https://')) return p;
+          final base = widget.baseUrl.endsWith('/')
+              ? widget.baseUrl.substring(0, widget.baseUrl.length - 1)
+              : widget.baseUrl;
+          return '$base$p';
+        }
+
+        _pickupPhotoUrl = toAbs(pickupPath);
+        _deliverPhotoUrl = toAbs(deliverPath);
+
+        if (status == 'DELIVERED') {
+          if (mounted) Get.offAll(() => const RiderHomePage());
+          return;
+        }
+
+        if (status == 'PICKED_UP_EN_ROUTE') {
+          _pickedUp = true;
+          _navToDrop = true;
+        } else {
+          _pickedUp = false;
+          _navToDrop = false;
+        }
+        setState(() {});
+        _updateRoute();
+      }
+    } catch (_) {
+      // offline/เงียบไว้ → ใช้ค่าที่ส่งมาเป็น fallback
+    }
+  }
+
+  // ================= Location & Loop =================
   Future<void> _initLocation() async {
     try {
       final ok = await _ensurePermission();
@@ -115,17 +208,14 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
       final pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
-      _onPosition(LatLng(pos.latitude, pos.longitude));
+      _onPosition(LatLng(pos.latitude, pos.longitude), raw: pos);
 
-      _posSub =
-          Geolocator.getPositionStream(
-            locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.best,
-              distanceFilter: 3,
-            ),
-          ).listen((p) {
-            _onPosition(LatLng(p.latitude, p.longitude), raw: p);
-          });
+      _posSub = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.best,
+          distanceFilter: 3, // อัปเดตเมื่อเคลื่อน ≥ 3 เมตร
+        ),
+      ).listen((p) => _onPosition(LatLng(p.latitude, p.longitude), raw: p));
 
       // ส่งตำแหน่งขึ้น backend ทุก 5 วิ
       _tick = Timer.periodic(
@@ -138,30 +228,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
         _loading = false;
       });
     }
-  }
-
-  void _onPosition(LatLng latlng, {Position? raw}) {
-    _me = latlng;
-    _loading = false;
-
-    _distToPickup = _distanceMeters(latlng, widget.pickup);
-    _distToDrop = _distanceMeters(latlng, widget.dropoff);
-
-    // เก็บค่า sensor จาก Position (เรียกตรงนี้ตอน listen stream)
-    if (raw != null) {
-      _lastHeadingDegFromSensor = raw.heading; // อาจเป็น -1
-      _lastSpeedMpsFromSensor = raw.speed; // m/s
-    }
-
-    if (_mapReady) {
-      _map.move(latlng, 16);
-    } else {
-      _pendingCenter = latlng;
-      _pendingZoom = 16;
-    }
-
-    if (mounted) setState(() {});
-    _updateRoute();
   }
 
   Future<bool> _ensurePermission() async {
@@ -179,7 +245,30 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     return true;
   }
 
-  LatLng? _lastSent; // เก็บพิกัดล่าสุดที่ “ส่งขึ้นเซิร์ฟเวอร์”
+  void _onPosition(LatLng latlng, {Position? raw}) {
+    _me = latlng;
+    _loading = false;
+
+    _distToPickup = _distanceMeters(latlng, _pickup);
+    _distToDrop = _distanceMeters(latlng, _dropoff);
+
+    if (raw != null) {
+      _lastHeadingDegFromSensor = raw.heading; // -1 ถ้าอุปกรณ์ยังประเมินไม่ได้
+      _lastSpeedMpsFromSensor = raw.speed;
+    }
+
+    if (_mapReady) {
+      _map.move(latlng, 16);
+    } else {
+      _pendingCenter = latlng;
+      _pendingZoom = 16;
+    }
+
+    if (mounted) setState(() {});
+    _updateRoute();
+  }
+
+  LatLng? _lastSent;
   DateTime? _lastSentAt;
 
   double _bearingDegrees(LatLng a, LatLng b) {
@@ -195,8 +284,8 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
   Future<void> _sendLocation() async {
     if (_me == null) return;
 
-    double? headingDeg = _lastHeadingDegFromSensor; // set ใน _onPosition
-    double? speedMps = _lastSpeedMpsFromSensor; // set ใน _onPosition
+    double? headingDeg = _lastHeadingDegFromSensor;
+    double? speedMps = _lastSpeedMpsFromSensor;
 
     final now = DateTime.now();
     if ((headingDeg == null || headingDeg.isNaN || headingDeg < 0) &&
@@ -209,13 +298,18 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
       final dt = now.difference(_lastSentAt!).inMilliseconds / 1000.0;
       if (dt > 0) {
         final d = _distanceMeters(_lastSent!, _me!);
-        speedMps = d / dt; // m/s
+        speedMps = d / dt;
       }
     }
 
-    // ปัดเลขให้ payload เล็กลง
     double round(double v, [int p = 6]) => double.parse(v.toStringAsFixed(p));
-    Map<String, dynamic> payload = {
+    final riderId = Get.find<SessionService>().currentUserId;
+    if (riderId == null) return;
+
+    final uri = Uri.parse(
+      '${widget.baseUrl}/rider_locations/$riderId/location',
+    );
+    final payload = <String, dynamic>{
       'lat': round(_me!.latitude, 7),
       'lng': round(_me!.longitude, 7),
       'shipment_id': widget.shipmentId,
@@ -224,24 +318,17 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     };
 
     try {
-      final riderId = Get.find<SessionService>().currentUserId;
-      if (riderId == null) return;
-
-      final uri = Uri.parse(
-        '${widget.baseUrl}/rider_locations/$riderId/location',
-      );
       await http.post(
         uri,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(payload),
       );
-
       _lastSent = _me;
       _lastSentAt = now;
     } catch (_) {}
   }
 
-  // ---------------- Routing (OSRM public) ----------------
+  // ================= Routing (OSRM) =================
   Future<void> _updateRoute() async {
     if (_me == null) return;
 
@@ -276,7 +363,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
         }
       }
     } catch (_) {
-      // เงียบไว้ กรณีออฟไลน์/เรียกไม่ติด
+      // เงียบไว้
     }
   }
 
@@ -289,7 +376,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     return '$h ชม $mm นาที';
   }
 
-  // ---------------- Photo helpers ----------------
+  // ================= Photo helpers =================
   Future<File?> _pickImage() async {
     final source = await Get.bottomSheet<ImageSource>(
       SafeArea(
@@ -310,7 +397,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
       ),
       backgroundColor: Colors.white,
     );
-
     if (source == null) return null;
 
     final x = await _picker.pickImage(
@@ -339,6 +425,27 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     final resp = await http.Response.fromStream(streamed);
 
     if (resp.statusCode == 201) {
+      final body = _safeJson(resp);
+      final fp = (body['data']?['file_path'] ?? body['file_path'] ?? '')
+          ?.toString();
+      if (fp != null && fp.isNotEmpty) {
+        String toAbs(String p) {
+          if (p.startsWith('http://') || p.startsWith('https://')) return p;
+          final base = widget.baseUrl.endsWith('/')
+              ? widget.baseUrl.substring(0, widget.baseUrl.length - 1)
+              : widget.baseUrl;
+          return '$base$p';
+        }
+
+        setState(() {
+          if (isPickup) {
+            _pickupPhotoUrl = toAbs(fp);
+          } else {
+            _deliverPhotoUrl = toAbs(fp);
+          }
+        });
+      }
+
       Get.snackbar(
         'อัปโหลดสำเร็จ',
         isPickup ? 'บันทึกรูปตอนรับแล้ว' : 'บันทึกรูปตอนส่งแล้ว',
@@ -358,7 +465,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     }
   }
 
-  // ---------------- Status API ----------------
+  // ================= Status API =================
   Future<bool> _markPickedUp() async {
     final uri = Uri.parse(
       '${widget.baseUrl}/shipments/${widget.shipmentId}/pickup',
@@ -370,7 +477,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     if (resp.statusCode == 200 || resp.statusCode == 201) {
       setState(() {
         _pickedUp = true;
-        _navToDrop = true; // หลังรับแล้ว → นำทางไปจุดส่ง
+        _navToDrop = true; // หลังรับแล้ว → นำทางจุดส่ง
       });
       _updateRoute();
       Get.snackbar(
@@ -397,14 +504,13 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
         .timeout(const Duration(seconds: 12));
 
     if (resp.statusCode == 200 || resp.statusCode == 201) {
-      // หยุด stream/timer กันรั่ว
       try {
         await _posSub?.cancel();
       } catch (_) {}
       _tick?.cancel();
 
+      // กลับหน้า Home (ให้หน้า Home refresh รายการเองตาม logic ที่มี)
       Get.offAll(() => const RiderHomePage());
-
       return true;
     } else {
       final b = _safeJson(resp);
@@ -415,17 +521,16 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     }
   }
 
-  // ---------------- Single Action Button ----------------
+  // ================= Single Action (ถ่ายรูป & รับ / ถ่ายรูป & ส่ง) =================
   Future<void> _onAction() async {
-    // ยังไม่ pickup → ต้องอยู่ในระยะ pickup ก่อน
     if (!_pickedUp) {
+      // เฟสไปรับ
       if (!_canPickup || _actionBusy) return;
 
       setState(() => _actionBusy = true);
       try {
         final file = await _pickImage();
         if (file == null) return;
-
         final okUpload = await _uploadPhoto(isPickup: true, file: file);
         if (!okUpload) return;
         setState(() => _pickupPhotoFile = file);
@@ -437,7 +542,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
       return;
     }
 
-    // pickup แล้ว → ต้องอยู่ในระยะ dropoff ก่อน
+    // เฟสไปส่ง
     if (_pickedUp) {
       if (!_canDeliver || _actionBusy) return;
 
@@ -445,7 +550,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
       try {
         final file = await _pickImage();
         if (file == null) return;
-
         final okUpload = await _uploadPhoto(isPickup: false, file: file);
         if (!okUpload) return;
         setState(() => _deliverPhotoFile = file);
@@ -457,7 +561,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     }
   }
 
-  // ---------------- Utils ----------------
+  // ================= Utils =================
   Map<String, dynamic> _safeJson(http.Response resp) {
     try {
       return jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
@@ -481,27 +585,40 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     return '${(m / 1000).toStringAsFixed(2)} km';
   }
 
-  // ---------------- UI ----------------
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     final isPickupPhase = !_pickedUp;
     final canDoNow = isPickupPhase ? _canPickup : _canDeliver;
-    final btnText = isPickupPhase
-        ? 'ถ่ายรูป & รับพัสดุ'
-        : 'ถ่ายรูป & ส่งสำเร็จ';
+
     final hintText = isPickupPhase
         ? (canDoNow ? null : 'ต้องอยู่ในระยะ ≤ 20 เมตรจากจุดรับ')
         : (canDoNow ? null : 'ต้องอยู่ในระยะ ≤ 20 เมตรจากจุดส่ง');
 
     return WillPopScope(
-      onWillPop: () async => false, // บังคับอยู่หน้านี้จนส่งสำเร็จ
+      onWillPop: () async => false, // บังคับอยู่หน้าติดตามจนส่งสำเร็จ
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
+          centerTitle: true,
           title: Text(
-            'นำส่งสินค้า (สด)',
-            style: GoogleFonts.notoSansThai(fontWeight: FontWeight.w900),
+            'Rider นำส่งสินค้า',
+            style: GoogleFonts.notoSansThai(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
           ),
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [Color(0xFFEA4335), Color(0xFFFF9C00)],
+              ),
+            ),
+          ),
+          backgroundColor: const Color(0xFFEA4335),
         ),
         body: _loading
             ? const Center(child: CircularProgressIndicator())
@@ -512,8 +629,12 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                         FlutterMap(
                           mapController: _map,
                           options: MapOptions(
-                            initialCenter: _me ?? widget.pickup,
+                            initialCenter: _me ?? _pickup,
                             initialZoom: 16,
+                            interactionOptions: InteractionOptions(
+                              flags:
+                                  InteractiveFlag.all & ~InteractiveFlag.rotate,
+                            ),
                             onMapReady: () {
                               _mapReady = true;
                               if (_pendingCenter != null) {
@@ -530,7 +651,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                             CircleLayer(
                               circles: [
                                 CircleMarker(
-                                  point: widget.pickup,
+                                  point: _pickup,
                                   radius: 20,
                                   useRadiusInMeter: true,
                                   color: Colors.blue.withOpacity(0.18),
@@ -538,7 +659,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                                   borderColor: Colors.blueAccent,
                                 ),
                                 CircleMarker(
-                                  point: widget.dropoff,
+                                  point: _dropoff,
                                   radius: 20,
                                   useRadiusInMeter: true,
                                   color: Colors.green.withOpacity(0.18),
@@ -561,7 +682,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                                     ),
                                   ),
                                 Marker(
-                                  point: widget.pickup,
+                                  point: _pickup,
                                   width: 48,
                                   height: 48,
                                   child: const Icon(
@@ -571,7 +692,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                                   ),
                                 ),
                                 Marker(
-                                  point: widget.dropoff,
+                                  point: _dropoff,
                                   width: 48,
                                   height: 48,
                                   child: const Icon(
@@ -582,21 +703,21 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                                 ),
                               ],
                             ),
-                            // เส้นทาง
-                            PolylineLayer<Object>(
+                            // เส้นทาง (type มาตรฐาน ไม่ใส่ generic แปลก ๆ)
+                            PolylineLayer(
                               polylines: _routeLine.isEmpty
-                                  ? const <Polyline<Object>>[]
-                                  : <Polyline<Object>>[
-                                      Polyline<Object>(
+                                  ? const <Polyline>[]
+                                  : <Polyline>[
+                                      Polyline(
                                         points: _routeLine,
                                         strokeWidth: 7,
                                         color: _pickedUp
                                             ? Colors.greenAccent.withOpacity(
                                                 0.8,
-                                              ) // ไปส่ง
+                                              )
                                             : Colors.blueAccent.withOpacity(
                                                 0.8,
-                                              ), // ไปเก็บ
+                                              ),
                                         borderStrokeWidth: 2.5,
                                         borderColor: Colors.black.withOpacity(
                                           0.2,
@@ -677,85 +798,37 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                           ),
                         ),
 
-                        // ปุ่มสลับเป้าหมาย/รีเฟรชเส้นทาง (สลับได้หลังรับแล้ว)
-                        Positioned(
-                          right: 12,
-                          top: 74,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              const SizedBox(height: 8),
-                              ElevatedButton.icon(
-                                onPressed: () {
-                                  if (!_pickedUp) {
-                                    return; // ยังไม่รับ → นำทางไปจุดรับอย่างเดียว
-                                  }
-                                  setState(() => _navToDrop = !_navToDrop);
-                                  _updateRoute();
-                                },
-                                icon: const Icon(Icons.swap_horiz_rounded),
-                                label: Text(
-                                  _navToDrop
-                                      ? 'นำทางไปจุดส่ง'
-                                      : 'นำทางไปจุดรับ',
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.black87,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 8,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                              ),
-                              ElevatedButton.icon(
-                                onPressed: _updateRoute,
-                                icon: const Icon(Icons.refresh_rounded),
-                                label: const Text('รีเฟรชเส้นทาง'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.black54,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 8,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // previews
+                        // previews (รองรับทั้งไฟล์และ URL + placeholder ตามสถานะ)
                         Positioned(
                           left: 12,
                           right: 12,
-                          bottom: 72 + 12 + 8, // เหนือปุ่มหลักนิดนึง
+                          bottom: 72 + 12 + 8, // เหนือปุ่มหลัก
                           child: Row(
                             children: [
                               Expanded(
                                 child: _PreviewBox(
                                   file: _pickupPhotoFile,
-                                  placeholder: 'ยังไม่มีรูปตอนรับ',
+                                  url: _pickupPhotoUrl,
+                                  placeholder: _pickedUp
+                                      ? 'รับแล้ว'
+                                      : 'ยังไม่มีรูปตอนรับ',
                                 ),
                               ),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: _PreviewBox(
                                   file: _deliverPhotoFile,
-                                  placeholder: 'ยังไม่มีรูปตอนส่ง',
+                                  url: _deliverPhotoUrl,
+                                  placeholder: _pickedUp
+                                      ? 'ยังไม่มีรูปตอนส่ง'
+                                      : 'รอรับก่อนถึงถ่ายตอนส่งได้',
                                 ),
                               ),
                             ],
                           ),
                         ),
 
-                        // single action button (ถ่ายรูป & รับ / ถ่ายรูป & ส่ง)
+                        // single action button
                         Positioned(
                           left: 12,
                           right: 12,
@@ -777,7 +850,9 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                                     )
                                   : const Icon(Icons.camera_alt_outlined),
                               label: Text(
-                                btnText,
+                                isPickupPhase
+                                    ? 'ถ่ายรูป & รับพัสดุ'
+                                    : 'ถ่ายรูป & ส่งสำเร็จ',
                                 style: GoogleFonts.notoSansThai(
                                   fontWeight: FontWeight.w900,
                                 ),
@@ -804,31 +879,163 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
   }
 }
 
-class _PreviewBox extends StatelessWidget {
+class _PreviewBox extends StatefulWidget {
   final File? file;
+  final String? url; // รูปจากเซิร์ฟเวอร์ (เช่น /uploads/shipments/..)
   final String? placeholder;
-  const _PreviewBox({this.file, this.placeholder});
+
+  const _PreviewBox({this.file, this.url, this.placeholder});
+
+  @override
+  State<_PreviewBox> createState() => _PreviewBoxState();
+}
+
+class _PreviewBoxState extends State<_PreviewBox> {
+  // สำหรับกด retry (เปลี่ยนค่าเพื่อบังคับ re-render URL)
+  int _retry = 0;
 
   @override
   Widget build(BuildContext context) {
+    final border = Border.all(color: Colors.black.withOpacity(0.05));
+    final deco = BoxDecoration(
+      color: const Color(0xFFF0F2F5),
+      borderRadius: BorderRadius.circular(12),
+      border: border,
+    );
+
+    // 1) ถ้ามีไฟล์ในเครื่อง แสดงไฟล์เลย
+    if (widget.file != null) {
+      return Container(
+        height: 86,
+        decoration: deco,
+        clipBehavior: Clip.antiAlias,
+        child: Image.file(
+          widget.file!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+        ),
+      );
+    }
+
+    // 2) ถ้าไม่มี url → โชว์ placeholder
+    final rawUrl = (widget.url ?? '').trim();
+    if (rawUrl.isEmpty) {
+      return _placeholderBox(deco, widget.placeholder ?? 'No photo');
+    }
+
+    // 3) ป้องกัน url ผิดรูปแบบ + เติม cache buster
+    final withBuster = _appendCacheBuster(rawUrl, _retry);
+    final uri = Uri.tryParse(withBuster);
+
+    if (uri == null || (!uri.hasScheme && !withBuster.startsWith('/'))) {
+      // URL พังจริง ๆ → โชว์ placeholder
+      return _placeholderBox(deco, widget.placeholder ?? 'No photo');
+    }
+
     return Container(
       height: 86,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0F2F5),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black.withOpacity(0.05)),
-      ),
-      alignment: Alignment.center,
+      decoration: deco,
       clipBehavior: Clip.antiAlias,
-      child: file != null
-          ? Image.file(file!, fit: BoxFit.cover, width: double.infinity)
-          : Text(
-              placeholder ?? 'No photo',
-              style: GoogleFonts.notoSansThai(
-                color: Colors.black54,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+      child: Image.network(
+        withBuster,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        // กำลังโหลด
+        loadingBuilder: (ctx, child, progress) {
+          if (progress == null) return child;
+          return _loadingBox();
+        },
+        // โหลดล้มเหลว
+        errorBuilder: (ctx, err, stack) {
+          return _errorBox(
+            onRetry: () {
+              setState(() => _retry++);
+            },
+          );
+        },
+        // ป้องกันกระพริบตอนเปลี่ยนเฟรม
+        gaplessPlayback: true,
+      ),
     );
+  }
+
+  Widget _placeholderBox(BoxDecoration deco, String text) {
+    return Container(
+      height: 86,
+      decoration: deco,
+      alignment: Alignment.center,
+      child: Text(
+        text,
+        style: GoogleFonts.notoSansThai(
+          color: Colors.black54,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _loadingBox() {
+    return Container(
+      color: const Color(0xFFF0F2F5),
+      alignment: Alignment.center,
+      child: const SizedBox(
+        width: 22,
+        height: 22,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+    );
+  }
+
+  Widget _errorBox({required VoidCallback onRetry}) {
+    return Container(
+      color: const Color(0xFFF0F2F5),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.broken_image_outlined, color: Colors.black54),
+              const SizedBox(height: 6),
+              Text(
+                ' โหลดรูปไม่สำเร็จ',
+                style: GoogleFonts.notoSansThai(
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black54,
+                ),
+              ),
+            ],
+          ),
+          // const SizedBox(height: 6),
+          OutlinedButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh, size: 18),
+            label: const Text('ลองอีกครั้ง'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: const Size(0, 0),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _appendCacheBuster(String url, int retry) {
+    // ถ้าเป็น absolute http(s) → ใช้ตามนั้น
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      final u = Uri.parse(url);
+      final q = Map<String, String>.from(u.queryParameters);
+      q['v'] = DateTime.now().millisecondsSinceEpoch.toString();
+      final newUri = u.replace(queryParameters: q);
+      return newUri.toString();
+    }
+    // ถ้าเป็น path เริ่มด้วย '/' → ให้คงไว้ (จะใช้คู่กับ baseUrl ด้านนอกก่อนหน้านี้แล้ว)
+    // เติม cache buster แบบง่าย ๆ
+    return url.contains('?')
+        ? '$url&v=${DateTime.now().millisecondsSinceEpoch + retry}'
+        : '$url?v=${DateTime.now().millisecondsSinceEpoch + retry}';
   }
 }

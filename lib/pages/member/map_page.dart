@@ -30,6 +30,8 @@ class _MapPickPageState extends State<MapPickPage> {
 
   static const _apiKey = '0b03b55da9a64adab5790c1c9515b15a';
 
+  bool _loading = true;
+
   @override
   void initState() {
     super.initState();
@@ -38,38 +40,39 @@ class _MapPickPageState extends State<MapPickPage> {
 
   Future<void> _initLocation() async {
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        setState(() => _currentCenter = _fallbackCenter);
-        return;
-      }
-
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
 
-      if (permission == LocationPermission.deniedForever ||
-          permission == LocationPermission.denied) {
-        setState(() => _currentCenter = _fallbackCenter);
+      if (serviceEnabled &&
+          permission != LocationPermission.denied &&
+          permission != LocationPermission.deniedForever) {
+        final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+        );
+        final gps = LatLng(pos.latitude, pos.longitude);
+
+        setState(() {
+          _currentCenter = gps;
+          _picked = gps;
+          _loading = false;
+        });
+
+        await _reverseGeocode(gps);
         return;
       }
 
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
-      final gps = LatLng(pos.latitude, pos.longitude);
-
       setState(() {
-        _currentCenter = gps;
-        _picked = gps;
+        _currentCenter = _fallbackCenter;
+        _loading = false;
       });
-
-      _mapController.move(gps, 15);
-      await _reverseGeocode(gps);
     } catch (_) {
-      setState(() => _currentCenter = _fallbackCenter);
+      setState(() {
+        _currentCenter = _fallbackCenter;
+        _loading = false;
+      });
     }
   }
 
@@ -118,7 +121,9 @@ class _MapPickPageState extends State<MapPickPage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('หาไม่เจอ ลองพิมพ์ให้เฉพาะเจาะจงขึ้นหน่อยค่ะ')),
+        const SnackBar(
+          content: Text('หาไม่เจอ ลองพิมพ์ให้เฉพาะเจาะจงขึ้นหน่อยค่ะ'),
+        ),
       );
     }
   }
@@ -139,6 +144,11 @@ class _MapPickPageState extends State<MapPickPage> {
 
   @override
   Widget build(BuildContext context) {
+    // ระหว่างกำลังหาพิกัด: แสดงหน้ารอ (ไม่วาดแผนที่ก่อน)
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       body: Stack(
         children: [
@@ -147,6 +157,12 @@ class _MapPickPageState extends State<MapPickPage> {
             options: MapOptions(
               initialCenter: _currentCenter,
               initialZoom: 14,
+
+              // 🔒 ปิดการหมุนแผนที่
+              interactionOptions: InteractionOptions(
+                flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+              ),
+
               onTap: (tapPosition, point) async {
                 setState(() {
                   _picked = point;
@@ -231,6 +247,8 @@ class _MapPickPageState extends State<MapPickPage> {
                                 isDense: true,
                               ),
                               textInputAction: TextInputAction.search,
+                              onChanged: (_) =>
+                                  setState(() {}), // ให้ไอคอน clear อัปเดต
                               onSubmitted: (_) => _searchAddress(),
                             ),
                           ),

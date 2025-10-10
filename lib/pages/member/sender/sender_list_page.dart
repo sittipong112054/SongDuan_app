@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
+
 import 'package:songduan_app/services/session_service.dart';
 import 'package:songduan_app/widgets/order_card.dart';
 import 'package:songduan_app/widgets/order_detail_card.dart';
@@ -36,6 +37,14 @@ class _SenderListPageState extends State<SenderListPage> {
 
     try {
       final senderId = Get.find<SessionService>().currentUserId;
+      if (senderId == null) {
+        setState(() {
+          _loading = false;
+          _error = 'ไม่พบผู้ใช้ปัจจุบัน (senderId == null)';
+        });
+        return;
+      }
+
       final uri = Uri.parse(
         '${widget.baseUrl}/shipments',
       ).replace(queryParameters: {'sender_id': '$senderId'});
@@ -51,12 +60,23 @@ class _SenderListPageState extends State<SenderListPage> {
             ? (body['data'] as List)
             : (body is List ? body : const []);
 
+        String? abs(String s) {
+          s = s.trim();
+          if (s.isEmpty) return null;
+          return s.startsWith('http') ? s : _joinBase(widget.baseUrl, s);
+        }
+
         final mapped = list.map<Map<String, dynamic>>((x) {
           final pickup =
-              (x['pickup'] ?? x['pickup_address'] ?? {}) as Map? ?? {};
+              (x['pickup'] ?? x['pickup_address'] ?? <String, dynamic>{})
+                  as Map? ??
+              {};
           final dropoff =
-              (x['dropoff'] ?? x['dropoff_address'] ?? {}) as Map? ?? {};
+              (x['dropoff'] ?? x['dropoff_address'] ?? <String, dynamic>{})
+                  as Map? ??
+              {};
 
+          // ระยะทางที่ API อาจส่งมา (ถ้าไม่มี ใช้ mock สวย ๆ)
           final double? distanceKm = (x['distance_km'] is num)
               ? (x['distance_km'] as num).toDouble()
               : null;
@@ -64,28 +84,31 @@ class _SenderListPageState extends State<SenderListPage> {
               ? '${distanceKm.toStringAsFixed(1)} กม.'
               : _mockDistance(x['id'] ?? 0);
 
+          // ภาพ cover (ตอน WAITING) + ภาพสถานะ (pickup/deliver)
           final cover =
               (x['cover_file_path'] ?? x['file_path'] ?? '') as String;
-          final imagePath = cover.trim().isEmpty
-              ? null
-              : (cover.startsWith('http')
-                    ? cover
-                    : _joinBase(widget.baseUrl, cover));
+          final coverUrl = abs(cover);
 
+          final pickupPhotoUrl = abs((x['pickup_photo_path'] ?? '') as String);
+          final deliverPhotoUrl = abs(
+            (x['deliver_photo_path'] ?? '') as String,
+          );
+
+          // รูปโปรไฟล์ sender/receiver
           final rawSenderAvatar = (x['sender']?['avatar_path'] ?? '') as String;
-          final senderAvatar = rawSenderAvatar.trim().isEmpty
-              ? null
-              : (rawSenderAvatar.startsWith('http')
-                    ? rawSenderAvatar
-                    : _joinBase(widget.baseUrl, rawSenderAvatar));
+          final senderAvatar = abs(rawSenderAvatar);
 
           final rawReceiverAvatar =
               (x['receiver']?['avatar_path'] ?? '') as String;
-          final receiverAvatar = rawReceiverAvatar.trim().isEmpty
-              ? null
-              : (rawReceiverAvatar.startsWith('http')
-                    ? rawReceiverAvatar
-                    : _joinBase(widget.baseUrl, rawReceiverAvatar));
+          final receiverAvatar = abs(rawReceiverAvatar);
+
+          // ข้อมูลไรเดอร์ (ถ้ามี assignment)
+          final rider = x['assignment']?['rider'];
+          final riderName =
+              (rider?['name'] as String?)?.trim().isNotEmpty == true
+              ? rider['name'] as String
+              : null;
+          final riderAvatar = abs((rider?['avatar_path'] ?? '') as String);
 
           return {
             'id': x['id'],
@@ -95,10 +118,21 @@ class _SenderListPageState extends State<SenderListPage> {
             'to': (dropoff['label'] ?? dropoff['address_text'] ?? '—')
                 .toString(),
             'distance': distanceText,
-            'image': imagePath,
+            // hero image: ถ้ามีรูปส่งแล้ว > ใช้รูปส่ง, รองลงมารูปตอนรับ, สุดท้าย cover
+            'image': deliverPhotoUrl ?? pickupPhotoUrl ?? coverUrl,
             'status': _mapStatus((x['status'] ?? '').toString()),
+
             'sender_avatar': senderAvatar,
             'receiver_avatar': receiverAvatar,
+
+            // สำหรับรายละเอียด
+            'pickup_photo_url': pickupPhotoUrl,
+            'deliver_photo_url': deliverPhotoUrl,
+
+            // ไรเดอร์ (ใช้โชว์บนการ์ด/ข้อความประกอบ)
+            'rider_name': riderName,
+            'rider_avatar': riderAvatar,
+
             '_raw': x,
             '_pickup': pickup,
             '_dropoff': dropoff,
@@ -125,7 +159,7 @@ class _SenderListPageState extends State<SenderListPage> {
   String _mockDistance(dynamic seed) {
     final i = (seed is int) ? seed : 1;
     final km = (1.2 + (i * 0.8) + Random(i).nextDouble()).toStringAsFixed(1);
-    return 'ระยะทาง $km กม.';
+    return '$km กม.';
   }
 
   String _joinBase(String base, String rel) {
@@ -154,17 +188,20 @@ class _SenderListPageState extends State<SenderListPage> {
     final pickup = m['_pickup'] as Map<String, dynamic>? ?? const {};
     final dropoff = m['_dropoff'] as Map<String, dynamic>? ?? const {};
 
-    final senderAvatar =
-        (raw['sender']?['avatar_path'] is String &&
-            (raw['sender']!['avatar_path'] as String).trim().isNotEmpty)
-        ? _joinBase(widget.baseUrl, raw['sender']!['avatar_path'] as String)
-        : 'assets/images/default_avatar.png';
+    String safeAbs(String? path, String fallback) {
+      if (path == null || path.trim().isEmpty) return fallback;
+      return path.startsWith('http') ? path : _joinBase(widget.baseUrl, path);
+    }
 
-    final receiverAvatar =
-        (raw['receiver']?['avatar_path'] is String &&
-            (raw['receiver']!['avatar_path'] as String).trim().isNotEmpty)
-        ? _joinBase(widget.baseUrl, raw['receiver']!['avatar_path'] as String)
-        : 'assets/images/default_avatar.png';
+    final senderAvatar = safeAbs(
+      raw['sender']?['avatar_path'] as String?,
+      'assets/images/default_avatar.png',
+    );
+
+    final receiverAvatar = safeAbs(
+      raw['receiver']?['avatar_path'] as String?,
+      'assets/images/default_avatar.png',
+    );
 
     Get.dialog(
       Dialog(
@@ -194,6 +231,9 @@ class _SenderListPageState extends State<SenderListPage> {
                     .toString(),
                 placeName: (dropoff['label'] ?? '—').toString(),
               ),
+              // ✅ ส่งภาพสถานะเข้าไปแสดงในรายละเอียด
+              pickupPhotoUrl: m['pickup_photo_url'] as String?,
+              deliverPhotoUrl: m['deliver_photo_url'] as String?,
             ),
           ),
         ),
@@ -247,34 +287,41 @@ class _SenderListPageState extends State<SenderListPage> {
                       from: m['from'] as String,
                       to: m['to'] as String,
                       distanceText: m['distance'] as String,
-                      imagePath: m['image'] as String?, // URL (หรือ null)
+                      imagePath: m['image'] as String?, // network OK
                       status: m['status'] as OrderStatus,
                       onDetail: () => _openDetail(m),
                     ),
 
-                    if (m['receiver_avatar'] != null)
+                    // รูปไรเดอร์ (ถ้ามี assignment)
+                    if (m['rider_avatar'] != null || m['rider_name'] != null)
                       Positioned(
                         top: 8,
                         left: 8,
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.15),
-                                blurRadius: 6,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: CircleAvatar(
-                            radius: 16,
-                            backgroundImage: NetworkImage(
-                              m['receiver_avatar'] as String,
+                        child: Tooltip(
+                          message: (m['rider_name'] as String?) ?? 'Rider',
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.15),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
                             ),
-                            backgroundColor: Colors.grey.shade200,
+                            child: CircleAvatar(
+                              radius: 16,
+                              backgroundImage: (m['rider_avatar'] != null)
+                                  ? NetworkImage(m['rider_avatar'] as String)
+                                  : const AssetImage(
+                                          'assets/images/default_avatar.png',
+                                        )
+                                        as ImageProvider,
+                              backgroundColor: Colors.grey.shade200,
+                            ),
                           ),
                         ),
                       ),
