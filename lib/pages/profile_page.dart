@@ -245,7 +245,7 @@ class _ProfilePageState extends State<ProfilePage> {
         centerTitle: true,
         title: Text(
           'Profile',
-          style: GoogleFonts.nunitoSans(
+          style: GoogleFonts.notoSansThai(
             color: Colors.white,
             fontSize: 18,
             fontWeight: FontWeight.w900,
@@ -294,7 +294,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       children: [
                         Text(
                           name,
-                          style: GoogleFonts.nunitoSans(
+                          style: GoogleFonts.notoSansThai(
                             fontSize: 24,
                             fontWeight: FontWeight.w900,
                             color: _textDark,
@@ -302,7 +302,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                         Text(
                           roleLabel,
-                          style: GoogleFonts.nunitoSans(
+                          style: GoogleFonts.notoSansThai(
                             fontSize: 14,
                             color: Colors.black.withOpacity(0.45),
                             fontWeight: FontWeight.w700,
@@ -318,7 +318,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
               Text(
                 'ข้อมูลส่วนตัว',
-                style: GoogleFonts.nunitoSans(
+                style: GoogleFonts.notoSansThai(
                   fontSize: 15.5,
                   fontWeight: FontWeight.w900,
                   color: _textDark,
@@ -334,7 +334,7 @@ class _ProfilePageState extends State<ProfilePage> {
               if (isRider) ...[
                 Text(
                   'ข้อมูลยานพาหนะ',
-                  style: GoogleFonts.nunitoSans(
+                  style: GoogleFonts.notoSansThai(
                     fontSize: 15.5,
                     fontWeight: FontWeight.w900,
                     color: _textDark,
@@ -382,7 +382,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   children: [
                     Text(
                       'ที่อยู่',
-                      style: GoogleFonts.nunitoSans(
+                      style: GoogleFonts.notoSansThai(
                         fontSize: 15.5,
                         fontWeight: FontWeight.w900,
                         color: _textDark,
@@ -402,7 +402,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       },
                       child: Text(
                         'เพิ่มที่อยู่',
-                        style: GoogleFonts.nunitoSans(
+                        style: GoogleFonts.notoSansThai(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w900,
                           color: const Color(0xFFFF9C00),
@@ -534,7 +534,7 @@ class _VehiclePictureBox extends StatelessWidget {
         ),
         child: Text(
           'Picture of vehicle',
-          style: GoogleFonts.nunitoSans(
+          style: GoogleFonts.notoSansThai(
             fontSize: 14,
             color: Colors.black.withOpacity(0.55),
             fontWeight: FontWeight.w700,
@@ -581,7 +581,7 @@ class _ReadOnlyField extends StatelessWidget {
           Expanded(
             child: Text(
               hint,
-              style: GoogleFonts.nunitoSans(
+              style: GoogleFonts.notoSansThai(
                 color: Colors.black.withOpacity(0.35),
                 fontWeight: FontWeight.w700,
               ),
@@ -589,7 +589,7 @@ class _ReadOnlyField extends StatelessWidget {
           ),
           Text(
             value,
-            style: GoogleFonts.nunitoSans(
+            style: GoogleFonts.notoSansThai(
               color: Colors.black.withOpacity(0.8),
               fontWeight: FontWeight.w900,
             ),
@@ -624,7 +624,7 @@ class _AddressTile extends StatelessWidget {
             children: [
               Expanded(
                 child: DefaultTextStyle(
-                  style: GoogleFonts.nunitoSans(
+                  style: GoogleFonts.notoSansThai(
                     color: Colors.black.withOpacity(0.8),
                     fontWeight: FontWeight.w900,
                   ),
@@ -638,7 +638,7 @@ class _AddressTile extends StatelessWidget {
                         subtitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.nunitoSans(
+                        style: GoogleFonts.notoSansThai(
                           color: Colors.black.withOpacity(0.35),
                           fontWeight: FontWeight.w700,
                         ),
@@ -731,7 +731,7 @@ class _ErrorTile extends StatelessWidget {
               Expanded(
                 child: Text(
                   message,
-                  style: GoogleFonts.nunitoSans(
+                  style: GoogleFonts.notoSansThai(
                     color: Colors.black.withOpacity(0.8),
                     fontWeight: FontWeight.w900,
                   ),
@@ -739,7 +739,7 @@ class _ErrorTile extends StatelessWidget {
               ),
               Text(
                 'ลองใหม่',
-                style: GoogleFonts.nunitoSans(
+                style: GoogleFonts.notoSansThai(
                   color: Colors.red.shade400,
                   fontWeight: FontWeight.w900,
                 ),

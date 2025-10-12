@@ -433,6 +433,7 @@ class _SenderMapPageState extends State<SenderMapPage> {
   }
 
   Widget _buildMapCard() {
+    if (_items.isEmpty) return const SizedBox.shrink();
     final markers = <Marker>[];
     final circles = <CircleMarker>[];
     final polylines = <Polyline>[];

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import 'package:songduan_app/config/config.dart';
 import 'package:songduan_app/pages/profile_page.dart';
 import 'package:songduan_app/widgets/profile_header.dart';
@@ -21,6 +21,9 @@ class MemberHomePage extends StatefulWidget {
 }
 
 class _MemberHomePageState extends State<MemberHomePage> {
+  static const _orange = Color(0xFFEA4335);
+  static const _gold = Color(0xFFFF9C00);
+
   bool _isSender = true;
 
   int _senderIndex = 0;
@@ -43,18 +46,15 @@ class _MemberHomePageState extends State<MemberHomePage> {
     }
   }
 
-  List<BottomNavigationBarItem> get _senderItems => const [
-    BottomNavigationBarItem(icon: Icon(Icons.add_box_outlined), label: 'สร้าง'),
-    BottomNavigationBarItem(icon: Icon(Icons.map_outlined), label: 'แผนที่'),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.list_alt_outlined),
-      label: 'รายการ',
-    ),
+  List<GradientNavItem> get _senderTabs => const [
+    GradientNavItem(Icons.add_box_outlined, 'สร้าง'),
+    GradientNavItem(Icons.map_outlined, 'แผนที่'),
+    GradientNavItem(Icons.list_alt_outlined, 'รายการ'),
   ];
 
-  List<BottomNavigationBarItem> get _receiverItems => const [
-    BottomNavigationBarItem(icon: Icon(Icons.map_outlined), label: 'แผนที่'),
-    BottomNavigationBarItem(icon: Icon(Icons.inbox_outlined), label: 'รายการ'),
+  List<GradientNavItem> get _receiverTabs => const [
+    GradientNavItem(Icons.map_outlined, 'แผนที่'),
+    GradientNavItem(Icons.inbox_outlined, 'รายการ'),
   ];
 
   @override
@@ -96,7 +96,7 @@ class _MemberHomePageState extends State<MemberHomePage> {
         body: SafeArea(child: Center(child: CircularProgressIndicator())),
       );
     }
-    if (_cfgError != null || _baseUrl == null || _baseUrl!.isEmpty) {
+    if (_cfgError != null || _baseUrl == null || _baseUrl!.isNotEmpty != true) {
       return Scaffold(
         body: SafeArea(
           child: Center(
@@ -108,7 +108,7 @@ class _MemberHomePageState extends State<MemberHomePage> {
       );
     }
 
-    final items = _isSender ? _senderItems : _receiverItems;
+    final tabs = _isSender ? _senderTabs : _receiverTabs;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -142,7 +142,7 @@ class _MemberHomePageState extends State<MemberHomePage> {
                         _isSender = true;
                         _senderIndex = _senderIndex.clamp(
                           0,
-                          _senderItems.length - 1,
+                          _senderTabs.length - 1,
                         );
                       }),
                     ),
@@ -155,7 +155,7 @@ class _MemberHomePageState extends State<MemberHomePage> {
                         _isSender = false;
                         _receiverIndex = _receiverIndex.clamp(
                           0,
-                          _receiverItems.length - 1,
+                          _receiverTabs.length - 1,
                         );
                       }),
                     ),
@@ -184,15 +184,125 @@ class _MemberHomePageState extends State<MemberHomePage> {
         ),
       ),
 
-      bottomNavigationBar: BottomNavigationBar(
-        items: items,
-        currentIndex: _currentIndex.clamp(0, items.length - 1),
-        type: BottomNavigationBarType.fixed,
+      bottomNavigationBar: CustomGradientNavBar(
+        items: tabs,
+        currentIndex: _currentIndex.clamp(0, tabs.length - 1),
         onTap: (idx) => setState(() => _currentIndex = idx),
-        selectedLabelStyle: GoogleFonts.notoSansThai(
-          fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+}
+
+class GradientNavItem {
+  final IconData icon;
+  final String label;
+  const GradientNavItem(this.icon, this.label);
+}
+
+class CustomGradientNavBar extends StatelessWidget {
+  final List<GradientNavItem> items;
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+
+  const CustomGradientNavBar({
+    super.key,
+    required this.items,
+    required this.currentIndex,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+        child: Material(
+          elevation: 10,
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            height: 65,
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
+            child: Row(
+              children: List.generate(items.length, (i) {
+                final selected = i == currentIndex;
+                return _NavButton(
+                  item: items[i],
+                  selected: selected,
+                  onTap: () => onTap(i),
+                );
+              }),
+            ),
+          ),
         ),
-        unselectedLabelStyle: GoogleFonts.notoSansThai(),
+      ),
+    );
+  }
+}
+
+class _NavButton extends StatelessWidget {
+  final GradientNavItem item;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _NavButton({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ts = MediaQuery.of(context).textScaleFactor.clamp(1.0, 1.2);
+
+    return Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            gradient: selected
+                ? const LinearGradient(
+                    colors: [
+                      _MemberHomePageState._orange,
+                      _MemberHomePageState._gold,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            color: selected ? null : Colors.transparent,
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                item.icon,
+                size: selected ? 24 : 22,
+                color: selected ? Colors.white : Colors.grey.shade700,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                item.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.notoSansThai(
+                  fontWeight: selected ? FontWeight.w900 : FontWeight.w400,
+                  fontSize: 12 * ts,
+                  color: selected ? Colors.white : Colors.grey.shade700,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

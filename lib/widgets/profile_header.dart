@@ -50,7 +50,7 @@ class ProfileHeader extends StatelessWidget {
           children: [
             Text(
               name,
-              style: GoogleFonts.nunitoSans(
+              style: GoogleFonts.notoSansThai(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: _textDark,
@@ -58,7 +58,7 @@ class ProfileHeader extends StatelessWidget {
             ),
             Text(
               role,
-              style: GoogleFonts.nunitoSans(
+              style: GoogleFonts.notoSansThai(
                 fontSize: 13,
                 color: Colors.black.withOpacity(0.45),
                 fontWeight: FontWeight.w700,

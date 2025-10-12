@@ -244,7 +244,7 @@ class _SenderListPageState extends State<SenderListPage> {
         padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
         children: [
           const SizedBox(height: 10),
-          SectionTitle('รายการส่งของของฉัน (Sender)'),
+          SectionTitle('รายการส่งของของฉัน'),
           const SizedBox(height: 10),
 
           if (_loading) ...[
