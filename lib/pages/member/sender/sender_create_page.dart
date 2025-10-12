@@ -459,6 +459,7 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
         ..._itemCtrls.indexed.map((e) {
           final i = e.$1;
           final ctrl = e.$2;
+
           return Padding(
             padding: EdgeInsets.only(
               bottom: i == _itemCtrls.length - 1 ? 0 : 10,
@@ -477,19 +478,26 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
                   ),
                 ),
                 const SizedBox(width: 6),
-                _RoundIconBtn(
-                  icon: Icons.remove_circle_outline,
-                  tooltip: 'ลบรายการ',
-                  onTap: _itemCtrls.length > 1
-                      ? () => _removeItemField(i)
-                      : null,
-                ),
+
+                if (i == 0)
+                  _RoundIconBtn(
+                    icon: Icons.add_circle_outline,
+                    tooltip: 'เพิ่มรายการ',
+                    onTap: _addItemField,
+                  )
+                else
+                  _RoundIconBtn(
+                    icon: Icons.remove_circle_outline,
+                    tooltip: 'ลบรายการ',
+                    onTap: _itemCtrls.length > 1
+                        ? () => _removeItemField(i)
+                        : null,
+                  ),
               ],
             ),
           );
         }),
-        const SizedBox(height: 14),
-        _AddItemButton(onTap: _addItemField),
+
         const SizedBox(height: 16),
 
         SectionTitle('ระบุโน๊ต'),
@@ -800,44 +808,44 @@ class _CameraCardState extends State<_CameraCard> {
   }
 }
 
-class _AddItemButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _AddItemButton({required this.onTap});
+// class _AddItemButton extends StatelessWidget {
+//   final VoidCallback onTap;
+//   const _AddItemButton({required this.onTap});
 
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.center,
-      child: Material(
-        color: const Color(0xFFEDEEF1),
-        borderRadius: BorderRadius.circular(12),
-        elevation: 2,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'เพิ่มสินค้าที่จะส่ง',
-                  style: GoogleFonts.notoSansThai(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.black.withOpacity(0.7),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(Icons.add, color: Colors.black54),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     return Align(
+//       alignment: Alignment.center,
+//       child: Material(
+//         color: const Color(0xFFEDEEF1),
+//         borderRadius: BorderRadius.circular(12),
+//         elevation: 2,
+//         child: InkWell(
+//           borderRadius: BorderRadius.circular(12),
+//           onTap: onTap,
+//           child: Padding(
+//             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+//             child: Row(
+//               mainAxisSize: MainAxisSize.min,
+//               children: [
+//                 Text(
+//                   'เพิ่มสินค้าที่จะส่ง',
+//                   style: GoogleFonts.notoSansThai(
+//                     fontSize: 14.5,
+//                     fontWeight: FontWeight.w800,
+//                     color: Colors.black.withOpacity(0.7),
+//                   ),
+//                 ),
+//                 const SizedBox(width: 8),
+//                 const Icon(Icons.add, color: Colors.black54),
+//               ],
+//             ),
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }
 
 class _NoteField extends StatelessWidget {
   final TextEditingController controller;

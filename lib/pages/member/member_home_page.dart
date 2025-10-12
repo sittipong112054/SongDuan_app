@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -25,7 +27,6 @@ class _MemberHomePageState extends State<MemberHomePage> {
   static const _gold = Color(0xFFFF9C00);
 
   bool _isSender = true;
-
   int _senderIndex = 0;
   int _receiverIndex = 0;
 
@@ -96,7 +97,7 @@ class _MemberHomePageState extends State<MemberHomePage> {
         body: SafeArea(child: Center(child: CircularProgressIndicator())),
       );
     }
-    if (_cfgError != null || _baseUrl == null || _baseUrl!.isNotEmpty != true) {
+    if (_cfgError != null || _baseUrl == null || _baseUrl!.isEmpty) {
       return Scaffold(
         body: SafeArea(
           child: Center(
@@ -112,82 +113,107 @@ class _MemberHomePageState extends State<MemberHomePage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-              child: ProfileHeader(
-                name: _name,
-                role: _roleLabel,
-                image: _user['avatar_path']?.toString().isNotEmpty == true
-                    ? _user['avatar_path'] as String
-                    : 'assets/images/default_avatar.png',
-                baseUrl: _baseUrl,
-                onMorePressed: () =>
-                    Get.to(() => const ProfilePage(), arguments: _user),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TabButton(
-                      text: "ผู้ส่ง",
-                      selected: _isSender,
-                      onTap: () => setState(() {
-                        _isSender = true;
-                        _senderIndex = _senderIndex.clamp(
-                          0,
-                          _senderTabs.length - 1,
-                        );
-                      }),
-                    ),
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+                  child: ProfileHeader(
+                    name: _name,
+                    role: _roleLabel,
+                    image: _user['avatar_path']?.toString().isNotEmpty == true
+                        ? _user['avatar_path'] as String
+                        : 'assets/images/default_avatar.png',
+                    baseUrl: _baseUrl,
+                    onMorePressed: () =>
+                        Get.to(() => const ProfilePage(), arguments: _user),
                   ),
-                  Expanded(
-                    child: TabButton(
-                      text: "ผู้รับ",
-                      selected: !_isSender,
-                      onTap: () => setState(() {
-                        _isSender = false;
-                        _receiverIndex = _receiverIndex.clamp(
-                          0,
-                          _receiverTabs.length - 1,
-                        );
-                      }),
-                    ),
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TabButton(
+                          text: "ผู้ส่ง",
+                          selected: _isSender,
+                          onTap: () => setState(() {
+                            _isSender = true;
+                            _senderIndex = _senderIndex.clamp(
+                              0,
+                              _senderTabs.length - 1,
+                            );
+                          }),
+                        ),
+                      ),
+                      Expanded(
+                        child: TabButton(
+                          text: "ผู้รับ",
+                          selected: !_isSender,
+                          onTap: () => setState(() {
+                            _isSender = false;
+                            _receiverIndex = _receiverIndex.clamp(
+                              0,
+                              _receiverTabs.length - 1,
+                            );
+                          }),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: IndexedStack(
+                    index: _currentIndex,
+                    children: _isSender
+                        ? [
+                            SenderCreatePage(
+                              key: UniqueKey(),
+                              baseUrl: _baseUrl!,
+                            ),
+                            SenderMapPage(key: UniqueKey(), baseUrl: _baseUrl!),
+                            SenderListPage(
+                              key: UniqueKey(),
+                              baseUrl: _baseUrl!,
+                            ),
+                          ]
+                        : [
+                            ReceiverMapPage(
+                              key: UniqueKey(),
+                              baseUrl: _baseUrl!,
+                            ),
+                            ReceiverListPage(
+                              key: UniqueKey(),
+                              baseUrl: _baseUrl!,
+                            ),
+                          ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 20,
+            child: Center(
+              child: Container(
+                color: Colors.transparent,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: CustomGradientNavBar(
+                  items: tabs,
+                  currentIndex: _currentIndex.clamp(0, tabs.length - 1),
+                  onTap: (idx) => setState(() => _currentIndex = idx),
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-
-            Expanded(
-              child: IndexedStack(
-                index: _currentIndex,
-                children: _isSender
-                    ? [
-                        SenderCreatePage(key: UniqueKey(), baseUrl: _baseUrl!),
-                        SenderMapPage(key: UniqueKey(), baseUrl: _baseUrl!),
-                        SenderListPage(key: UniqueKey(), baseUrl: _baseUrl!),
-                      ]
-                    : [
-                        ReceiverMapPage(key: UniqueKey(), baseUrl: _baseUrl!),
-                        ReceiverListPage(key: UniqueKey(), baseUrl: _baseUrl!),
-                      ],
-              ),
-            ),
-          ],
-        ),
-      ),
-
-      bottomNavigationBar: CustomGradientNavBar(
-        items: tabs,
-        currentIndex: _currentIndex.clamp(0, tabs.length - 1),
-        onTap: (idx) => setState(() => _currentIndex = idx),
+          ),
+        ],
       ),
     );
   }
@@ -213,27 +239,26 @@ class CustomGradientNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
-        child: Material(
-          elevation: 10,
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            height: 65,
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
-            child: Row(
-              children: List.generate(items.length, (i) {
-                final selected = i == currentIndex;
-                return _NavButton(
-                  item: items[i],
-                  selected: selected,
-                  onTap: () => onTap(i),
-                );
-              }),
-            ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          height: 70,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.3)),
+          ),
+          child: Row(
+            children: List.generate(items.length, (i) {
+              final selected = i == currentIndex;
+              return _NavButton(
+                item: items[i],
+                selected: selected,
+                onTap: () => onTap(i),
+              );
+            }),
           ),
         ),
       ),
@@ -258,7 +283,7 @@ class _NavButton extends StatelessWidget {
 
     return Expanded(
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 250),
