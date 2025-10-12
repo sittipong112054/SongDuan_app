@@ -132,6 +132,7 @@ class OrderDetailCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = _mapStatusToColors(status);
+    final hasMainImage = _isHttpUrl(imagePath);
 
     return Container(
       decoration: BoxDecoration(
@@ -187,41 +188,74 @@ class OrderDetailCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
+          // === รูปใหญ่กดได้ ===
           Center(
-            child: Container(
-              width: 210,
-              height: 210,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE9E9E9),
+            child: Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                onTap: hasMainImage
+                    ? () => _openImage(imagePath!, title: 'รูปสินค้า')
+                    : null,
                 borderRadius: BorderRadius.circular(18),
-              ),
-              clipBehavior: Clip.antiAlias,
-              alignment: Alignment.center,
-              child: (_isHttpUrl(imagePath))
-                  ? Image.network(
-                      imagePath!,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (context, child, progress) {
-                        if (progress == null) return child;
-                        return const Center(
-                          child: SizedBox(
-                            width: 28,
-                            height: 28,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        );
-                      },
-                      errorBuilder: (context, error, stack) => Icon(
-                        Icons.broken_image_outlined,
-                        size: 56,
-                        color: Colors.black.withOpacity(0.45),
+                child: Stack(
+                  children: [
+                    Container(
+                      width: 210,
+                      height: 210,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE9E9E9),
+                        borderRadius: BorderRadius.circular(18),
                       ),
-                    )
-                  : Icon(
-                      Icons.image_not_supported_rounded,
-                      size: 56,
-                      color: Colors.black.withOpacity(0.45),
+                      clipBehavior: Clip.antiAlias,
+                      alignment: Alignment.center,
+                      child: hasMainImage
+                          ? Image.network(
+                              imagePath!,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, progress) {
+                                if (progress == null) return child;
+                                return const Center(
+                                  child: SizedBox(
+                                    width: 28,
+                                    height: 28,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                );
+                              },
+                              errorBuilder: (context, error, stack) => Icon(
+                                Icons.broken_image_outlined,
+                                size: 56,
+                                color: Colors.black.withOpacity(0.45),
+                              ),
+                            )
+                          : Icon(
+                              Icons.image_not_supported_rounded,
+                              size: 56,
+                              color: Colors.black.withOpacity(0.45),
+                            ),
                     ),
+                    if (hasMainImage)
+                      Positioned(
+                        right: 8,
+                        bottom: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.45),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.zoom_out_map_rounded,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 14),

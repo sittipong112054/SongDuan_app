@@ -114,7 +114,7 @@ class _ReceiverListPageState extends State<ReceiverListPage> {
             'to': (dropoff['label'] ?? dropoff['address_text'] ?? '—')
                 .toString(),
             'distance': distanceText,
-            'image': deliverPhotoUrl ?? pickupPhotoUrl ?? coverUrl,
+            'image': coverUrl ?? deliverPhotoUrl ?? pickupPhotoUrl,
             'status': _mapStatus((x['status'] ?? '').toString()),
 
             'sender_avatar': senderAvatar,
