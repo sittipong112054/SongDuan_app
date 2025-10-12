@@ -32,21 +32,18 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
 
   bool _busy = false;
 
-  // -------- pickup (ผู้ส่ง)
   List<Map<String, dynamic>> _pickupAddresses = [];
   int? _selectedPickupIndex;
   String? _pickupError;
   bool _loadingPickup = false;
 
-  // -------- receiver (ผู้รับ)
-  List<Map<String, dynamic>> _results = []; // ที่อยู่ของผู้รับ
+  List<Map<String, dynamic>> _results = [];
   int? _selectedAddressIndex;
   int? _receiverUserId;
   String? _receiverName;
   String? _receiverPhone;
   String? _receiverAvatar;
 
-  // proof image
   String? _proofImagePath;
 
   final senderId = Get.find<SessionService>().currentUserId;
@@ -57,7 +54,7 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
     for (final c in [_phoneCtrl, _jobNameCtrl, _noteCtrl, ..._itemCtrls]) {
       c.addListener(() => setState(() {}));
     }
-    _fetchPickupAddresses(); // โหลดที่อยู่ของผู้ส่ง
+    _fetchPickupAddresses();
   }
 
   @override
@@ -69,7 +66,6 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
     super.dispose();
   }
 
-  // ------------ UI helpers ------------
   void _toast(String msg) {
     Get.snackbar(
       'แจ้งเตือน',
@@ -97,7 +93,6 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
     return AssetImage(s);
   }
 
-  // ------------ API: โหลดที่อยู่ผู้ส่ง (pickup) ------------
   Future<void> _fetchPickupAddresses() async {
     setState(() {
       _loadingPickup = true;
@@ -147,7 +142,6 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
     }
   }
 
-  // ------------ API: ค้นหาผู้รับด้วยเบอร์ ------------
   Future<void> _searchReceiver() async {
     final phone = _phoneCtrl.text.trim();
     if (phone.isEmpty) {
@@ -220,7 +214,6 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
     }
   }
 
-  // ------------ API: สร้าง shipment ------------
   Future<void> _submitShipment() async {
     final okPickup =
         _selectedPickupIndex != null && _pickupAddresses.isNotEmpty;
@@ -261,7 +254,6 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
       http.Response resp;
 
       if (_proofImagePath != null) {
-        // multipart
         final req = http.MultipartRequest('POST', uri);
 
         req.fields['title'] = title;
@@ -292,7 +284,6 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
         final sent = await req.send();
         resp = await http.Response.fromStream(sent);
       } else {
-        // JSON
         final payload = {
           'title': title,
           'sender_id': senderId,
@@ -313,7 +304,6 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
       final body = jsonDecode(utf8.decode(resp.bodyBytes));
       if (resp.statusCode == 201) {
         _toast('สร้างงานส่งสำเร็จ');
-        // รีเซ็ตบางส่วน
         setState(() {
           _jobNameCtrl.clear();
           _noteCtrl.clear();
@@ -321,7 +311,6 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
             c.clear();
           }
           _proofImagePath = null;
-          // เก็บผลค้นหาผู้รับไว้ เผื่อสร้างต่อเนื่อง
         });
       } else {
         final msg =
@@ -339,7 +328,6 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
     }
   }
 
-  // ------------ UI ------------
   void _addItemField() {
     final c = TextEditingController();
     c.addListener(() => setState(() {}));
@@ -449,7 +437,6 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
 
         const SizedBox(height: 12),
 
-        // รูปสินค้ารวม (ถ่าย/เลือกจากเครื่อง)
         _CameraCard(
           imagePath: _proofImagePath,
           onImagePicked: (path) => setState(() => _proofImagePath = path),
@@ -614,7 +601,6 @@ class _ReceiverCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // header
           Row(
             children: [
               CircleAvatar(radius: 18, backgroundImage: avatar),
@@ -632,7 +618,6 @@ class _ReceiverCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          // address list
           ...results.indexed.map((e) {
             final i = e.$1;
             final m = e.$2;
@@ -641,7 +626,6 @@ class _ReceiverCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // pick button
                   GestureDetector(
                     onTap: () => onPickIndex(i),
                     child: Container(
@@ -666,7 +650,6 @@ class _ReceiverCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  // address text
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.only(left: 10),

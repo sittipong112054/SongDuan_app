@@ -104,7 +104,6 @@ class _RiderProfilePageState extends State<RiderProfilePage> {
               children: [
                 const SizedBox(height: 6),
 
-                // Avatar + edit
                 Center(
                   child: Stack(
                     clipBehavior: Clip.none,
@@ -263,7 +262,6 @@ class _RiderProfilePageState extends State<RiderProfilePage> {
   Future<void> _onSubmit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    // บังคับให้มีภาพทั้งสอง
     if (_avatarFile == null) {
       Get.snackbar(
         'รูปโปรไฟล์',
@@ -315,7 +313,6 @@ class _RiderProfilePageState extends State<RiderProfilePage> {
         ),
       );
 
-      // แนบไฟล์ vehicle
       final vehicle = _vehicleFile!;
       final vehicleName = p.basename(vehicle.path);
       final vehicleMime = lookupMimeType(vehicle.path) ?? 'image/jpeg';

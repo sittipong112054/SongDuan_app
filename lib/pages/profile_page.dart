@@ -76,9 +76,7 @@ class _ProfilePageState extends State<ProfilePage> {
       } else {
         await _fetchAddresses();
       }
-    } catch (e) {
-      // เงียบไว้
-    }
+    } catch (_) {}
   }
 
   Future<void> _fetchAddresses() async {
@@ -501,14 +499,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
       Get.find<SessionService>().clear();
 
-      // ปิดทุกหน้าที่เปิดอยู่ แล้วกลับไปหน้า WelcomePage
-      Get.offAll(
-        () => const LoginPages(),
-        transition: Transition.fadeIn,
-        // duration: const Duration(milliseconds: 800),
-      );
+      Get.offAll(() => const LoginPages(), transition: Transition.fadeIn);
 
-      // แจ้งเตือน
       Get.snackbar(
         'ออกจากระบบสำเร็จ',
         'คุณได้ออกจากระบบเรียบร้อยแล้ว',

@@ -76,7 +76,6 @@ class _ReceiverListPageState extends State<ReceiverListPage> {
                   as Map? ??
               {};
 
-          // ระยะทางที่ API อาจส่งมา (ถ้าไม่มี ใช้ mock สวย ๆ)
           final double? distanceKm = (x['distance_km'] is num)
               ? (x['distance_km'] as num).toDouble()
               : null;
@@ -84,7 +83,6 @@ class _ReceiverListPageState extends State<ReceiverListPage> {
               ? '${distanceKm.toStringAsFixed(1)} กม.'
               : _mockDistance(x['id'] ?? 0);
 
-          // ภาพ cover (ตอน WAITING) + ภาพสถานะ (pickup/deliver)
           final cover =
               (x['cover_file_path'] ?? x['file_path'] ?? '') as String;
           final coverUrl = abs(cover);
@@ -94,7 +92,6 @@ class _ReceiverListPageState extends State<ReceiverListPage> {
             (x['deliver_photo_path'] ?? '') as String,
           );
 
-          // รูปโปรไฟล์ sender/receiver
           final rawSenderAvatar = (x['sender']?['avatar_path'] ?? '') as String;
           final senderAvatar = abs(rawSenderAvatar);
 
@@ -102,7 +99,6 @@ class _ReceiverListPageState extends State<ReceiverListPage> {
               (x['receiver']?['avatar_path'] ?? '') as String;
           final receiverAvatar = abs(rawReceiverAvatar);
 
-          // ข้อมูลไรเดอร์ (ถ้ามี assignment)
           final rider = x['assignment']?['rider'];
           final riderName =
               (rider?['name'] as String?)?.trim().isNotEmpty == true
@@ -118,18 +114,15 @@ class _ReceiverListPageState extends State<ReceiverListPage> {
             'to': (dropoff['label'] ?? dropoff['address_text'] ?? '—')
                 .toString(),
             'distance': distanceText,
-            // hero image: ถ้ามีรูปส่งแล้ว > ใช้รูปส่ง, รองลงมารูปตอนรับ, สุดท้าย cover
             'image': deliverPhotoUrl ?? pickupPhotoUrl ?? coverUrl,
             'status': _mapStatus((x['status'] ?? '').toString()),
 
             'sender_avatar': senderAvatar,
             'receiver_avatar': receiverAvatar,
 
-            // สำหรับรายละเอียด
             'pickup_photo_url': pickupPhotoUrl,
             'deliver_photo_url': deliverPhotoUrl,
 
-            // ไรเดอร์ (ใช้โชว์บนการ์ด/ข้อความประกอบ)
             'rider_name': riderName,
             'rider_avatar': riderAvatar,
 
@@ -231,7 +224,6 @@ class _ReceiverListPageState extends State<ReceiverListPage> {
                     .toString(),
                 placeName: (dropoff['label'] ?? '—').toString(),
               ),
-              // ✅ ส่งภาพสถานะเข้าไปแสดงในรายละเอียด
               pickupPhotoUrl: m['pickup_photo_url'] as String?,
               deliverPhotoUrl: m['deliver_photo_url'] as String?,
             ),
@@ -292,7 +284,6 @@ class _ReceiverListPageState extends State<ReceiverListPage> {
                       onDetail: () => _openDetail(m),
                     ),
 
-                    // รูปไรเดอร์ (ถ้ามี assignment)
                     if (m['rider_avatar'] != null || m['rider_name'] != null)
                       Positioned(
                         top: 8,

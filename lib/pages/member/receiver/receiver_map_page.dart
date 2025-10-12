@@ -28,10 +28,9 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
   String? _error;
 
   List<_Incoming> _items = [];
-  final Map<int, LatLng> _riderPos = {}; // riderId -> LatLng
-  final Map<int, List<LatLng>> _routes = {}; // shipmentId -> route points
-  final Map<int, LatLng> _lastRoutedFrom =
-      {}; // shipmentId -> last rider pos used
+  final Map<int, LatLng> _riderPos = {};
+  final Map<int, List<LatLng>> _routes = {};
+  final Map<int, LatLng> _lastRoutedFrom = {};
   Timer? _pollTimer;
 
   int? _focusedIndex;
@@ -45,9 +44,7 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
     Color(0xFF16A085),
   ];
 
-  // ถ้าระยะที่ไรเดอร์ขยับจากจุดที่เคย route > 30 m → ควรขอเส้นใหม่
   static const double _rerouteMetersThreshold = 30.0;
-  // จำกัดความถี่การยิง OSRM ต่อ shipment อย่างหยาบ ๆ
   final Map<int, DateTime> _lastRouteAt = {};
 
   @override
@@ -133,7 +130,6 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
     parsed.sort((a, b) => b.shipmentId.compareTo(a.shipmentId));
     setState(() => _items = parsed);
 
-    // เคลียร์ route cache สำหรับงานที่หายไป
     final validIds = _items.map((e) => e.shipmentId).toSet();
     _routes.keys
         .where((k) => !validIds.contains(k))
@@ -149,7 +145,6 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
 
     Future<void> tick() async {
       try {
-        // 1) อัปเดตตำแหน่งไรเดอร์
         final futures = <Future<void>>[];
         for (final it in _items) {
           final rid = it.riderId;
@@ -157,7 +152,6 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
         }
         await Future.wait(futures);
 
-        // 2) อัปเดตเส้นทาง OSRM (เฉพาะงานที่มีไรเดอร์ + จุดหมายครบ)
         final now = DateTime.now();
         for (var i = 0; i < _items.length; i++) {
           await _ensureRouteFor(i, now: now);
@@ -166,7 +160,6 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
         if (!mounted) return;
         setState(() {});
 
-        // 3) ปรับกล้อง
         if (_focusedIndex != null && _focusedIndex! < _items.length) {
           _fitShipment(_focusedIndex!);
         } else {
@@ -202,8 +195,6 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
     return LatLng(lat, lng);
   }
 
-  // ---------------- OSRM routing ----------------
-
   Future<void> _ensureRouteFor(int index, {DateTime? now}) async {
     if (index < 0 || index >= _items.length) return;
     final it = _items[index];
@@ -212,34 +203,30 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
     final rp = _riderPos[it.riderId!];
     if (rp == null) return;
 
-    // เลือกเป้าหมายตามสถานะ
     LatLng? target;
     if (it.status == 'RIDER_ACCEPTED') {
       target = it.pickupLatLng;
     } else if (it.status == 'PICKED_UP_EN_ROUTE') {
       target = it.dropoffLatLng;
     } else {
-      // สถานะอื่น ๆ ไม่ต้อง route
       return;
     }
     if (target == null) return;
 
     final sid = it.shipmentId;
 
-    // จำกัดความถี่: ไม่ขอถี่กว่า 4 วินาที/งาน (กันสแปม)
     final lastAt = _lastRouteAt[sid];
     final n = now ?? DateTime.now();
     if (lastAt != null && n.difference(lastAt).inMilliseconds < 4000) {
       return;
     }
 
-    // reroute เฉพาะเมื่อห่างจากจุดที่เคย route มากพอ
     final lastFrom = _lastRoutedFrom[sid];
     final moved = lastFrom == null
         ? double.infinity
         : _distanceMeters(lastFrom, rp);
     if (moved < _rerouteMetersThreshold && _routes.containsKey(sid)) {
-      return; // เส้นเดิมยังใช้ได้
+      return;
     }
 
     final pts = await _fetchOsrmRoute(rp, target);
@@ -251,7 +238,6 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
   }
 
   Future<List<LatLng>?> _fetchOsrmRoute(LatLng from, LatLng to) async {
-    // ใช้ geometries=geojson เพื่อได้ array [lon,lat] ตรง ๆ
     final url =
         'https://router.project-osrm.org/route/v1/driving/${from.longitude},${from.latitude};${to.longitude},${to.latitude}?overview=full&geometries=geojson';
     try {
@@ -280,7 +266,6 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
     }
   }
 
-  // ---------------- Camera fit ----------------
   void _fitToAll() {
     if (!_mapReady) return;
     final coords = <LatLng>[];
@@ -319,7 +304,6 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
     _map.fitCamera(fit);
   }
 
-  // ---------------- Utils ----------------
   double _distanceMeters(LatLng a, LatLng b) {
     final d = const Distance();
     return d.as(LengthUnit.Meter, a, b);
@@ -332,18 +316,15 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
   }
 
   Color _routeColorFor(String status, Color base) {
-    // กำหนดสีหลักตามสถานะ
     if (status == 'RIDER_ACCEPTED') {
       return Colors.blue.withOpacity(0.18);
     }
     if (status == 'PICKED_UP_EN_ROUTE') {
       return Colors.green.withOpacity(0.18);
     }
-    // สถานะอื่นใช้สีพื้นฐานอ่อนๆ
     return base.withOpacity(0.7);
   }
 
-  // ---------------- UI ----------------
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
@@ -467,7 +448,6 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
 
       final rp = it.riderId != null ? _riderPos[it.riderId!] : null;
 
-      // วงรัศมี pickup/dropoff
       if (it.pickupLatLng != null) {
         circles.add(
           CircleMarker(
@@ -493,7 +473,6 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
         );
       }
 
-      // เส้นทาง: ใช้ OSRM ถ้ามี route แล้ว, ไม่งั้น fallback เส้นตรงชั่วคราว
       final routePts = _routes[it.shipmentId];
       final lineColor = _routeColorFor(it.status, color);
       if (routePts != null && routePts.length >= 2) {
@@ -505,7 +484,6 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
           ),
         );
       } else {
-        // Fallback line: rider -> target ตามสถานะ
         final pts = <LatLng>[];
         if (rp != null) pts.add(rp);
         final target = it.status == 'RIDER_ACCEPTED'
@@ -523,7 +501,6 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
         }
       }
 
-      // Markers
       if (it.pickupLatLng != null) {
         markers.add(
           Marker(
@@ -602,8 +579,6 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
     );
   }
 }
-
-// ------------ internal model & helpers ------------
 
 class _Incoming {
   final int shipmentId;

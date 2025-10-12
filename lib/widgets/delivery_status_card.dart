@@ -6,12 +6,10 @@ class DeliveryStatusCard extends StatelessWidget {
   final int number;
   final Color badgeColor;
   final String title;
-  final String by; // ชื่อไรเดอร์
+  final String by;
   final String from;
   final String to;
   final OrderStatus status;
-
-  /// URL รูปโปรไฟล์ของ "by" (เช่น ไรเดอร์) - ไม่บังคับ
   final String? byAvatarUrl;
 
   const DeliveryStatusCard({
@@ -45,7 +43,6 @@ class DeliveryStatusCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: หมายเลขชุด + ชื่อรายการ + ผู้ขนส่ง (มีรูป)
           Row(
             children: [
               _CircleNumber(n: number, color: badgeColor),
@@ -159,10 +156,10 @@ class StatusStepBar extends StatelessWidget {
   const StatusStepBar({super.key, required this.status});
 
   int get activeIndex => switch (status) {
-    OrderStatus.waitingPickup => 0, // เข้ารับสินค้า
-    OrderStatus.riderAccepted => 0, // ยังอยู่ช่วงเข้ารับ
-    OrderStatus.delivering => 1, // กำลังส่ง
-    OrderStatus.delivered => 2, // สำเร็จ
+    OrderStatus.waitingPickup => 0,
+    OrderStatus.riderAccepted => 0,
+    OrderStatus.delivering => 1,
+    OrderStatus.delivered => 2,
   };
 
   List<Color> get activePair => switch (status) {

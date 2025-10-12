@@ -19,7 +19,6 @@ class RiderDeliveryTrackingPage extends StatefulWidget {
   final String baseUrl;
   final int shipmentId;
 
-  // fallback (ถ้า GET /shipments/:id สำเร็จ จะใช้ข้อมูลจาก backend เป็นหลัก)
   final LatLng pickup;
   final LatLng dropoff;
   final String? pickupLabel;
@@ -41,25 +40,20 @@ class RiderDeliveryTrackingPage extends StatefulWidget {
 }
 
 class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
-  // ===== Map =====
   final MapController _map = MapController();
   bool _mapReady = false;
   LatLng? _pendingCenter;
   double _pendingZoom = 16;
 
-  // ===== Location =====
   LatLng? _me;
   bool _loading = true;
   String? _error;
 
-  Timer? _tick; // ส่งตำแหน่งขึ้น backend
+  Timer? _tick;
   StreamSubscription<Position>? _posSub;
 
-  // ===== Shipment status =====
-  // เกณฑ์เข้า-ออกโซน
   static const double kGateMeters = 20.0;
 
-  // phase: false = ไปรับ, true = ไปส่ง
   bool _pickedUp = false;
   bool _actionBusy = false;
 
@@ -74,30 +68,25 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
       _distToDrop != null &&
       _distToDrop! <= kGateMeters;
 
-  // ===== Photo preview =====
   final _picker = ImagePicker();
   File? _pickupPhotoFile;
   File? _deliverPhotoFile;
 
-  // จากเซิร์ฟเวอร์
   String? _pickupPhotoUrl;
   String? _deliverPhotoUrl;
 
-  // ===== Navigation state (routing) =====
-  bool _navToDrop = false; // false = นำทางไปจุดรับ, true = นำทางไปจุดส่ง
+  bool _navToDrop = false;
   List<LatLng> _routeLine = [];
   String? _etaText;
   double? _routeDistanceMeters;
 
   LatLng get _target => _navToDrop ? _dropoff : _pickup;
 
-  // pickup/dropoff อาจอัปเดตจาก backend เมื่อ bootstrap
   late LatLng _pickup;
   late LatLng _dropoff;
   String? _pickupLabel;
   String? _dropoffLabel;
 
-  // ===== sensor enrich =====
   double? _lastHeadingDegFromSensor;
   double? _lastSpeedMpsFromSensor;
 
@@ -108,8 +97,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     _dropoff = widget.dropoff;
     _pickupLabel = widget.pickupLabel;
     _dropoffLabel = widget.dropoffLabel;
-
-    // โหลดสถานะจาก backend ก่อน → แล้วค่อยเปิด location stream
     _bootstrap();
   }
 
@@ -120,11 +107,10 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     super.dispose();
   }
 
-  // ================= Bootstrap =================
   Future<void> _bootstrap() async {
-    await _loadShipmentStatus(); // sync สถานะ/พิกัด/รูป ล่าสุด
+    await _loadShipmentStatus();
     if (!mounted) return;
-    await _initLocation(); // แล้วค่อยเริ่ม location + push loop
+    await _initLocation();
   }
 
   Future<void> _loadShipmentStatus() async {
@@ -138,7 +124,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
 
         final status = (data?['status'] ?? '').toString();
 
-        // อัปเดต pickup/dropoff จาก backend (ถ้ามี)
         try {
           final p = data?['pickup'] as Map<String, dynamic>?;
           final d = data?['dropoff'] as Map<String, dynamic>?;
@@ -158,7 +143,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
           }
         } catch (_) {}
 
-        // รูปจาก DB
         String? pickupPath = (data?['pickup_photo_path'] as String?)?.trim();
         String? deliverPath = (data?['deliver_photo_path'] as String?)?.trim();
         String toAbs(String? p) {
@@ -188,12 +172,9 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
         setState(() {});
         _updateRoute();
       }
-    } catch (_) {
-      // offline/เงียบไว้ → ใช้ค่าที่ส่งมาเป็น fallback
-    }
+    } catch (_) {}
   }
 
-  // ================= Location & Loop =================
   Future<void> _initLocation() async {
     try {
       final ok = await _ensurePermission();
@@ -213,11 +194,10 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
       _posSub = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.best,
-          distanceFilter: 3, // อัปเดตเมื่อเคลื่อน ≥ 3 เมตร
+          distanceFilter: 3,
         ),
       ).listen((p) => _onPosition(LatLng(p.latitude, p.longitude), raw: p));
 
-      // ส่งตำแหน่งขึ้น backend ทุก 5 วิ
       _tick = Timer.periodic(
         const Duration(seconds: 5),
         (_) => _sendLocation(),
@@ -253,7 +233,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     _distToDrop = _distanceMeters(latlng, _dropoff);
 
     if (raw != null) {
-      _lastHeadingDegFromSensor = raw.heading; // -1 ถ้าอุปกรณ์ยังประเมินไม่ได้
+      _lastHeadingDegFromSensor = raw.heading;
       _lastSpeedMpsFromSensor = raw.speed;
     }
 
@@ -328,7 +308,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     } catch (_) {}
   }
 
-  // ================= Routing (OSRM) =================
   Future<void> _updateRoute() async {
     if (_me == null) return;
 
@@ -362,9 +341,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
           });
         }
       }
-    } catch (_) {
-      // เงียบไว้
-    }
+    } catch (_) {}
   }
 
   String _fmtEta(double seconds) {
@@ -376,7 +353,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     return '$h ชม $mm นาที';
   }
 
-  // ================= Photo helpers =================
   Future<File?> _pickImage() async {
     final source = await Get.bottomSheet<ImageSource>(
       SafeArea(
@@ -465,7 +441,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     }
   }
 
-  // ================= Status API =================
   Future<bool> _markPickedUp() async {
     final uri = Uri.parse(
       '${widget.baseUrl}/shipments/${widget.shipmentId}/pickup',
@@ -477,7 +452,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     if (resp.statusCode == 200 || resp.statusCode == 201) {
       setState(() {
         _pickedUp = true;
-        _navToDrop = true; // หลังรับแล้ว → นำทางจุดส่ง
+        _navToDrop = true;
       });
       _updateRoute();
       Get.snackbar(
@@ -509,7 +484,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
       } catch (_) {}
       _tick?.cancel();
 
-      // กลับหน้า Home (ให้หน้า Home refresh รายการเองตาม logic ที่มี)
       Get.offAll(() => const RiderHomePage());
       return true;
     } else {
@@ -521,10 +495,8 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     }
   }
 
-  // ================= Single Action (ถ่ายรูป & รับ / ถ่ายรูป & ส่ง) =================
   Future<void> _onAction() async {
     if (!_pickedUp) {
-      // เฟสไปรับ
       if (!_canPickup || _actionBusy) return;
 
       setState(() => _actionBusy = true);
@@ -542,7 +514,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
       return;
     }
 
-    // เฟสไปส่ง
     if (_pickedUp) {
       if (!_canDeliver || _actionBusy) return;
 
@@ -561,7 +532,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     }
   }
 
-  // ================= Utils =================
   Map<String, dynamic> _safeJson(http.Response resp) {
     try {
       return jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
@@ -585,7 +555,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     return '${(m / 1000).toStringAsFixed(2)} km';
   }
 
-  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     final isPickupPhase = !_pickedUp;
@@ -596,7 +565,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
         : (canDoNow ? null : 'ต้องอยู่ในระยะ ≤ 20 เมตรจากจุดส่ง');
 
     return WillPopScope(
-      onWillPop: () async => false, // บังคับอยู่หน้าติดตามจนส่งสำเร็จ
+      onWillPop: () async => false,
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
@@ -703,7 +672,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                                 ),
                               ],
                             ),
-                            // เส้นทาง (type มาตรฐาน ไม่ใส่ generic แปลก ๆ)
                             PolylineLayer(
                               polylines: _routeLine.isEmpty
                                   ? const <Polyline>[]
@@ -728,7 +696,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                           ],
                         ),
 
-                        // distance & ETA box
                         Positioned(
                           left: 12,
                           right: 12,
@@ -798,11 +765,10 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                           ),
                         ),
 
-                        // previews (รองรับทั้งไฟล์และ URL + placeholder ตามสถานะ)
                         Positioned(
                           left: 12,
                           right: 12,
-                          bottom: 72 + 12 + 8, // เหนือปุ่มหลัก
+                          bottom: 72 + 12 + 8,
                           child: Row(
                             children: [
                               Expanded(
@@ -828,7 +794,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                           ),
                         ),
 
-                        // single action button
                         Positioned(
                           left: 12,
                           right: 12,
@@ -881,7 +846,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
 
 class _PreviewBox extends StatefulWidget {
   final File? file;
-  final String? url; // รูปจากเซิร์ฟเวอร์ (เช่น /uploads/shipments/..)
+  final String? url;
   final String? placeholder;
 
   const _PreviewBox({this.file, this.url, this.placeholder});
@@ -891,7 +856,6 @@ class _PreviewBox extends StatefulWidget {
 }
 
 class _PreviewBoxState extends State<_PreviewBox> {
-  // สำหรับกด retry (เปลี่ยนค่าเพื่อบังคับ re-render URL)
   int _retry = 0;
 
   @override
@@ -903,7 +867,6 @@ class _PreviewBoxState extends State<_PreviewBox> {
       border: border,
     );
 
-    // 1) ถ้ามีไฟล์ในเครื่อง แสดงไฟล์เลย
     if (widget.file != null) {
       return Container(
         height: 86,
@@ -917,18 +880,15 @@ class _PreviewBoxState extends State<_PreviewBox> {
       );
     }
 
-    // 2) ถ้าไม่มี url → โชว์ placeholder
     final rawUrl = (widget.url ?? '').trim();
     if (rawUrl.isEmpty) {
       return _placeholderBox(deco, widget.placeholder ?? 'No photo');
     }
 
-    // 3) ป้องกัน url ผิดรูปแบบ + เติม cache buster
     final withBuster = _appendCacheBuster(rawUrl, _retry);
     final uri = Uri.tryParse(withBuster);
 
     if (uri == null || (!uri.hasScheme && !withBuster.startsWith('/'))) {
-      // URL พังจริง ๆ → โชว์ placeholder
       return _placeholderBox(deco, widget.placeholder ?? 'No photo');
     }
 
@@ -940,12 +900,10 @@ class _PreviewBoxState extends State<_PreviewBox> {
         withBuster,
         fit: BoxFit.cover,
         width: double.infinity,
-        // กำลังโหลด
         loadingBuilder: (ctx, child, progress) {
           if (progress == null) return child;
           return _loadingBox();
         },
-        // โหลดล้มเหลว
         errorBuilder: (ctx, err, stack) {
           return _errorBox(
             onRetry: () {
@@ -953,7 +911,6 @@ class _PreviewBoxState extends State<_PreviewBox> {
             },
           );
         },
-        // ป้องกันกระพริบตอนเปลี่ยนเฟรม
         gaplessPlayback: true,
       ),
     );
@@ -1008,7 +965,6 @@ class _PreviewBoxState extends State<_PreviewBox> {
               ),
             ],
           ),
-          // const SizedBox(height: 6),
           OutlinedButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh, size: 18),
@@ -1024,7 +980,6 @@ class _PreviewBoxState extends State<_PreviewBox> {
   }
 
   String _appendCacheBuster(String url, int retry) {
-    // ถ้าเป็น absolute http(s) → ใช้ตามนั้น
     if (url.startsWith('http://') || url.startsWith('https://')) {
       final u = Uri.parse(url);
       final q = Map<String, String>.from(u.queryParameters);
@@ -1032,8 +987,6 @@ class _PreviewBoxState extends State<_PreviewBox> {
       final newUri = u.replace(queryParameters: q);
       return newUri.toString();
     }
-    // ถ้าเป็น path เริ่มด้วย '/' → ให้คงไว้ (จะใช้คู่กับ baseUrl ด้านนอกก่อนหน้านี้แล้ว)
-    // เติม cache buster แบบง่าย ๆ
     return url.contains('?')
         ? '$url&v=${DateTime.now().millisecondsSinceEpoch + retry}'
         : '$url?v=${DateTime.now().millisecondsSinceEpoch + retry}';

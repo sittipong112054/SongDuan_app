@@ -27,7 +27,7 @@ class ProfileHeader extends StatelessWidget {
       if (b.isNotEmpty) {
         return NetworkImage('$b$s');
       }
-      return const AssetImage('assets/images/johncena.png');
+      return const AssetImage('assets/images/default_avatar.png');
     }
 
     return AssetImage(s);

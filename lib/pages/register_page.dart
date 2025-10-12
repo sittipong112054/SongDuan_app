@@ -129,7 +129,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
                 const SizedBox(height: 25),
 
-                // USERNAME
                 CustomTextField(
                   hint: 'Username',
                   controller: _userCtrl,
@@ -151,11 +150,10 @@ class _RegisterPageState extends State<RegisterPage> {
                     return null;
                   },
                   onFieldSubmitted: (_) => FocusScope.of(context).nextFocus(),
-                  onChanged: (_) => setState(() {}), // อัปเดตปุ่ม enable
+                  onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: 14),
 
-                // PASSWORD
                 CustomTextField(
                   hint: 'Password',
                   controller: _passCtrl,
@@ -179,12 +177,13 @@ class _RegisterPageState extends State<RegisterPage> {
                     if (s.length < 8) return 'ความยาวอย่างน้อย 8 ตัวอักษร';
                     final hasLetter = RegExp(r'[A-Za-z]').hasMatch(s);
                     final hasNumber = RegExp(r'\d').hasMatch(s);
-                    if (!hasLetter || !hasNumber)
+                    if (!hasLetter || !hasNumber) {
                       return 'ต้องมีทั้งตัวอักษรและตัวเลข';
+                    }
                     return null;
                   },
                   onFieldSubmitted: (_) => FocusScope.of(context).nextFocus(),
-                  onChanged: (_) => setState(() {}), // อัปเดตปุ่ม enable
+                  onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: 14),
 

@@ -72,11 +72,6 @@ class _MemberHomePageState extends State<MemberHomePage> {
       'MEMBER' => 'Member',
       _ => 'User',
     };
-
-    // final session = Get.put(SessionService(), permanent: true);
-    // final dynamic idCandidate =
-    //     _user['id'] ?? _user['user_id'] ?? _user['uid'] ?? _user['member_id'];
-    // session.setCurrentUserId(idCandidate);
   }
 
   Future<void> _loadConfig() async {

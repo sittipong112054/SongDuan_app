@@ -36,9 +36,9 @@ class _AddLocationPageState extends State<AddLocationPage> {
   bool _submitting = false;
 
   late final int userId;
-  int? addressId; // edit mode when not null
+  int? addressId;
 
-  LatLng _latLng = const LatLng(13.7563, 100.5018); // BKK default
+  LatLng _latLng = const LatLng(13.7563, 100.5018);
 
   String? _baseUrl;
 
@@ -53,7 +53,6 @@ class _AddLocationPageState extends State<AddLocationPage> {
       userId = 0;
     }
 
-    // preload edit data if provided
     if (args is Map && args['address'] is Map) {
       final a = Map<String, dynamic>.from(args['address'] as Map);
       addressId =
@@ -316,7 +315,6 @@ class _AddLocationPageState extends State<AddLocationPage> {
     try {
       http.Response resp;
       if (addressId == null) {
-        // create
         final uri = Uri.parse('$_baseUrl/addresses/$userId');
         resp = await http.post(
           uri,
@@ -330,7 +328,6 @@ class _AddLocationPageState extends State<AddLocationPage> {
           }),
         );
       } else {
-        // update
         final uri = Uri.parse('$_baseUrl/addresses/$addressId');
         resp = await http.patch(
           uri,

@@ -110,8 +110,6 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 6),
-
-                // Avatar + edit
                 Center(
                   child: Stack(
                     clipBehavior: Clip.none,
@@ -190,7 +188,6 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
                   ],
                   validator: (v) {
                     final s = (v ?? '').trim();
-                    // ตัวอย่างรูปแบบเบอร์ไทย 10 หลักขึ้นต้น 0
                     return RegExp(r'^0\d{9}$').hasMatch(s)
                         ? null
                         : 'รูปแบบเบอร์ไม่ถูกต้อง';

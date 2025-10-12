@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class SectionTitle extends StatelessWidget {
-  const SectionTitle(this.text);
+  const SectionTitle(this.text, {super.key});
   final String text;
 
   @override

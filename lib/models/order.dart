@@ -5,8 +5,8 @@ class Order {
   final String address;
   final double? lat;
   final double? lng;
-  int status; // 1: รอไรเดอร์มารับ, 2: ไรเดอร์รับงาน, 3: รับของแล้วกำลังไปส่ง
-  String? proofImagePath; // รูปสถานะ [1]
+  int status;
+  String? proofImagePath;
 
   Order({
     required this.id,

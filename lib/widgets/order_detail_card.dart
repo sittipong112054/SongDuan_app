@@ -12,8 +12,8 @@ class OrderDetailCard extends StatelessWidget {
     this.imagePath,
     required this.status,
     this.showStatus = true,
-    this.pickupPhotoUrl, // รูปตอนรับ (จาก backend)
-    this.deliverPhotoUrl, // รูปตอนส่ง (จาก backend)
+    this.pickupPhotoUrl,
+    this.deliverPhotoUrl,
   });
 
   final String productName;
@@ -149,7 +149,6 @@ class OrderDetailCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header
           Row(
             children: [
               IconButton(
@@ -188,7 +187,6 @@ class OrderDetailCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          // Cover / hero image
           Center(
             child: Container(
               width: 210,
@@ -228,7 +226,6 @@ class OrderDetailCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
 
-          // ชื่อสินค้า
           Center(
             child: Text(
               productName,
@@ -241,7 +238,6 @@ class OrderDetailCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
 
-          // Sender
           Text(
             sender.placeName,
             style: GoogleFonts.notoSansThai(
@@ -255,7 +251,6 @@ class OrderDetailCard extends StatelessWidget {
 
           const SizedBox(height: 14),
 
-          // Receiver
           Text(
             receiver.placeName,
             style: GoogleFonts.notoSansThai(
@@ -269,8 +264,6 @@ class OrderDetailCard extends StatelessWidget {
 
           const SizedBox(height: 18),
 
-          // แถบสถานะ
-          // แถบสถานะ + ภาพสถานะ
           if (showStatus) ...[
             Center(
               child: Container(
@@ -294,7 +287,6 @@ class OrderDetailCard extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // ====== รูปสถานะ (ตอนรับ / ตอนส่ง) ======
             Text(
               'รูปสถานะ',
               style: GoogleFonts.notoSansThai(
@@ -331,7 +323,7 @@ class OrderDetailCard extends StatelessWidget {
 }
 
 class PersonInfo {
-  final String avatar; // network url หรือ asset fallback
+  final String avatar;
   final String role;
   final String name;
   final String phone;

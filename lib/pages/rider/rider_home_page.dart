@@ -24,22 +24,18 @@ class RiderHomePage extends StatefulWidget {
 }
 
 class _RiderHomePageState extends State<RiderHomePage> {
-  // งานว่าง
   bool _loading = false;
   String? _error;
   List<Map<String, dynamic>> _items = [];
 
-  // config
   String? _baseUrl;
   String? _cfgError;
   bool _loadingCfg = true;
 
-  // header user
   late Map<String, dynamic> _user = {};
   late final String _name;
   late final String _roleLabel;
 
-  // รับงาน (ใน dialog)
   final RxInt _acceptingId = 0.obs;
 
   @override
@@ -77,7 +73,6 @@ class _RiderHomePageState extends State<RiderHomePage> {
         _baseUrl = config['apiEndpoint'] as String?;
         _loadingCfg = false;
       });
-      // โหลดลิสต์รอบหนึ่งเมื่อ config มา (ปกติทำอยู่แล้ว)
       _refreshAll();
     } catch (e) {
       setState(() {
@@ -99,14 +94,12 @@ class _RiderHomePageState extends State<RiderHomePage> {
     if (riderId == null) return;
 
     try {
-      // 1) ตรวจงานที่ยัง active อยู่
       final uri = Uri.parse('$_baseUrl/riders/$riderId/active-assignment');
       final resp = await http
           .get(uri, headers: {'Content-Type': 'application/json'})
           .timeout(const Duration(seconds: 10));
 
       if (resp.statusCode != 200) {
-        // 404 = ไม่มีงาน active → เงียบไว้
         return;
       }
 
@@ -118,7 +111,6 @@ class _RiderHomePageState extends State<RiderHomePage> {
           : int.tryParse(rawSid?.toString() ?? '');
       if (sid == null) return;
 
-      // 2) โหลดรายละเอียดงานเพื่อเอาพิกัด pickup/dropoff
       final dUri = Uri.parse('$_baseUrl/shipments/$sid');
       final dResp = await http
           .get(dUri, headers: {'Accept': 'application/json'})
@@ -137,7 +129,6 @@ class _RiderHomePageState extends State<RiderHomePage> {
       final pickup = LatLng(pickupLat, pickupLng);
       final dropoff = LatLng(dropLat, dropLng);
 
-      // 3) ไปหน้าแผนที่ → กลับมาค่อย refresh
       final ok = await Get.to<bool>(
         () => RiderDeliveryTrackingPage(
           baseUrl: _baseUrl!,
@@ -149,9 +140,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
         ),
       );
       if (ok == true) await _fetchShipments();
-    } catch (_) {
-      // เงียบไว้ ไม่ต้องเด้ง error หน้า home
-    }
+    } catch (_) {}
   }
 
   Future<void> _fetchShipments() async {
@@ -272,7 +261,6 @@ class _RiderHomePageState extends State<RiderHomePage> {
       );
       return;
     }
-    // 1) ยิงรับงาน
     final uri = Uri.parse('$_baseUrl/shipments/$shipmentId/accept');
     final resp = await http
         .post(
@@ -291,7 +279,6 @@ class _RiderHomePageState extends State<RiderHomePage> {
       return;
     }
 
-    // 2) โหลดรายละเอียดงานเพื่อเอาพิกัด pickup/dropoff
     final dUri = Uri.parse('$_baseUrl/shipments/$shipmentId');
     final dResp = await http.get(dUri);
     if (dResp.statusCode != 200) {
@@ -315,8 +302,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
       (data['dropoff']['lng'] as num).toDouble(),
     );
 
-    // 3) ปิด dialog รายละเอียด แล้วพาไปหน้าแผนที่ (กัน back จนส่งเสร็จ)
-    Get.back(); // ปิด dialog
+    Get.back();
     final ok = await Get.to<bool>(
       () => RiderDeliveryTrackingPage(
         baseUrl: _baseUrl!,
@@ -329,7 +315,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
     );
 
     if (ok == true) {
-      await _fetchShipments(); // กลับมาและรีเฟรช
+      await _fetchShipments();
     }
   }
 
@@ -496,7 +482,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _refreshAll, // 👈 ดึงใหม่แบบรวม (เช็กงานค้าง + โหลดลิสต์)
+          onRefresh: _refreshAll,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
@@ -591,7 +577,6 @@ class _RiderHomePageState extends State<RiderHomePage> {
   }
 }
 
-// --- UI helpers --------------------------------------------------------------
 class _LoadingCard extends StatelessWidget {
   const _LoadingCard();
 

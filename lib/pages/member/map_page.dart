@@ -144,7 +144,6 @@ class _MapPickPageState extends State<MapPickPage> {
 
   @override
   Widget build(BuildContext context) {
-    // ระหว่างกำลังหาพิกัด: แสดงหน้ารอ (ไม่วาดแผนที่ก่อน)
     if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -158,7 +157,6 @@ class _MapPickPageState extends State<MapPickPage> {
               initialCenter: _currentCenter,
               initialZoom: 14,
 
-              // 🔒 ปิดการหมุนแผนที่
               interactionOptions: InteractionOptions(
                 flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
               ),
@@ -247,8 +245,7 @@ class _MapPickPageState extends State<MapPickPage> {
                                 isDense: true,
                               ),
                               textInputAction: TextInputAction.search,
-                              onChanged: (_) =>
-                                  setState(() {}), // ให้ไอคอน clear อัปเดต
+                              onChanged: (_) => setState(() {}),
                               onSubmitted: (_) => _searchAddress(),
                             ),
                           ),

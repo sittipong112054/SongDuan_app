@@ -2,12 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'mini_gradient_button.dart';
 
-enum OrderStatus {
-  waitingPickup, // [1] รอไรเดอร์มารับสินค้า
-  riderAccepted, // [2] ไรเดอร์รับงาน (กำลังเดินทางมารับสินค้า)
-  delivering, // [3] ไรเดอร์รับสินค้าแล้วและกำลังส่ง
-  delivered, // [4] ส่งสำเร็จแล้ว
-}
+enum OrderStatus { waitingPickup, riderAccepted, delivering, delivered }
 
 class OrderCard extends StatelessWidget {
   const OrderCard({
@@ -17,7 +12,7 @@ class OrderCard extends StatelessWidget {
     required this.to,
     required this.distanceText,
     required this.status,
-    this.imagePath, // ควรเป็น URL แบบเต็ม (http/https หรือ path ที่ประกอบแล้ว)
+    this.imagePath,
     this.onDetail,
   });
 
@@ -25,7 +20,7 @@ class OrderCard extends StatelessWidget {
   final String from;
   final String to;
   final String distanceText;
-  final String? imagePath; // URL ภาพ (Network)
+  final String? imagePath;
   final VoidCallback? onDetail;
   final OrderStatus status;
 
@@ -45,13 +40,13 @@ class OrderCard extends StatelessWidget {
   List<Color> _mapStatusToColors(OrderStatus status) {
     switch (status) {
       case OrderStatus.waitingPickup:
-        return [Colors.grey.shade400, Colors.grey.shade600]; // รอ
+        return [Colors.grey.shade400, Colors.grey.shade600];
       case OrderStatus.riderAccepted:
-        return [Colors.blue.shade400, Colors.blue.shade700]; // กำลังมา
+        return [Colors.blue.shade400, Colors.blue.shade700];
       case OrderStatus.delivering:
-        return [Colors.orange.shade400, Colors.deepOrange.shade700]; // ส่งอยู่
+        return [Colors.orange.shade400, Colors.deepOrange.shade700];
       case OrderStatus.delivered:
-        return [Colors.green.shade400, Colors.green.shade700]; // ส่งสำเร็จ
+        return [Colors.green.shade400, Colors.green.shade700];
     }
   }
 
@@ -74,7 +69,6 @@ class OrderCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // รูปหลัก (Network)
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -90,7 +84,6 @@ class OrderCard extends StatelessWidget {
                     ? Image.network(
                         imagePath!,
                         fit: BoxFit.cover,
-                        // กันพังเวลาโหลดรูปไม่ได้
                         errorBuilder: (context, error, stack) => const Center(
                           child: Icon(
                             Icons.broken_image_outlined,
@@ -98,7 +91,6 @@ class OrderCard extends StatelessWidget {
                             color: Colors.grey,
                           ),
                         ),
-                        // ใส่ placeholder ตอนกำลังโหลดเล็กน้อย
                         loadingBuilder: (context, child, progress) {
                           if (progress == null) return child;
                           return const Center(
@@ -121,7 +113,6 @@ class OrderCard extends StatelessWidget {
 
           const SizedBox(width: 14),
 
-          // ข้อมูลข้อความ
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -188,7 +179,6 @@ class OrderCard extends StatelessWidget {
 
           const SizedBox(width: 8),
 
-          // สถานะ + ปุ่ม
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [

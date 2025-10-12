@@ -1,9 +1,8 @@
 import 'dart:convert';
-// import 'dart:developer';
 
 import 'package:flutter/foundation.dart';
-
 import 'package:flutter/material.dart';
+
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
@@ -285,9 +284,6 @@ class _LoginPagesState extends State<LoginPages> {
           : (jsonDecode(text) as Map<String, dynamic>);
 
       if (resp.statusCode == 200) {
-        // ---------- ยุบ response ให้เป็นรูปเดียวกัน ----------
-        // รองรับทั้ง:
-        // { data: { user:{...}, token:"..." } }  หรือ  { id, role, name, phone, avatar_path, token }
         Map<String, dynamic> user = {};
         String? token;
 
@@ -302,7 +298,6 @@ class _LoginPagesState extends State<LoginPages> {
           if (raw['token'] != null) token = raw['token'].toString();
         }
 
-        // กันค่าที่สำคัญว่าง
         final role = (user['role'] ?? raw['role'] ?? '')
             .toString()
             .toUpperCase();
@@ -319,7 +314,6 @@ class _LoginPagesState extends State<LoginPages> {
           return;
         }
 
-        // ---------- เซฟ Session ----------
         final ss = Get.find<SessionService>();
         ss.saveFromLoginResponse({
           'data': {
@@ -335,7 +329,6 @@ class _LoginPagesState extends State<LoginPages> {
           },
         });
 
-        // ---------- แจ้งเตือน + นำทาง ----------
         Get.snackbar(
           'เข้าสู่ระบบสำเร็จ',
           'ยินดีต้อนรับ ${user['username'] ?? user['name'] ?? identifier}',
@@ -357,7 +350,6 @@ class _LoginPagesState extends State<LoginPages> {
         return;
       }
 
-      // ---------- กรณี error ----------
       final err = raw['error'];
       final errMsg = (err is Map && err['message'] is String)
           ? err['message'] as String

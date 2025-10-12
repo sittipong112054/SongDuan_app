@@ -1,4 +1,3 @@
-// lib/services/session_service.dart
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
@@ -6,14 +5,13 @@ class SessionService extends GetxService {
   final _box = GetStorage('session');
 
   int? currentUserId;
-  String? role; // 'RIDER' | 'MEMBER' | 'USER'
+  String? role;
   String? name;
   String? phone;
   String? avatarPath;
-  String? accessToken; // ถ้ามี JWT
+  String? accessToken;
 
   Future<SessionService> init() async {
-    // โหลดจาก storage ตอนเปิดแอป
     currentUserId = _box.read('user_id');
     role = _box.read('role');
     name = _box.read('name');
@@ -24,8 +22,6 @@ class SessionService extends GetxService {
   }
 
   void saveFromLoginResponse(Map<String, dynamic> json) {
-    // สมมติ response
-    // { data: { user: { id, role, name, phone, avatar_path }, token: '...' } }
     final u = (json['data']?['user'] ?? json['user']) as Map? ?? {};
     final token = (json['data']?['token'] ?? json['token'])?.toString();
 
@@ -36,7 +32,6 @@ class SessionService extends GetxService {
     avatarPath = u['avatar_path']?.toString();
     accessToken = token;
 
-    // persist
     _box.write('user_id', currentUserId);
     _box.write('role', role);
     _box.write('name', name);
@@ -52,7 +47,7 @@ class SessionService extends GetxService {
     phone = null;
     avatarPath = null;
     accessToken = null;
-    _box.erase(); // ล้างทั้งหมดใน scope 'session'
+    _box.erase();
   }
 
   bool get isLoggedIn => currentUserId != null;
