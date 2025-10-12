@@ -516,7 +516,7 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
             ),
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 60),
       ],
     );
   }
