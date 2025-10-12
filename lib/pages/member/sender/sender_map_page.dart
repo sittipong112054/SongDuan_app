@@ -558,6 +558,9 @@ class _SenderMapPageState extends State<SenderMapPage> {
         options: MapOptions(
           initialCenter: const LatLng(13.7563, 100.5018),
           initialZoom: 12.5,
+          interactionOptions: InteractionOptions(
+            flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+          ),
           onMapReady: () {
             _mapReady = true;
             if (_focusedIndex != null) {
