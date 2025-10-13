@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:ui';
+import 'package:flutter/services.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -15,6 +17,233 @@ import 'package:image_picker/image_picker.dart';
 import 'package:songduan_app/pages/rider/rider_home_page.dart';
 import 'package:songduan_app/services/api_helper.dart';
 import 'package:songduan_app/services/session_service.dart';
+
+class Glass extends StatelessWidget {
+  const Glass({
+    super.key,
+    required this.child,
+    this.borderRadius = const BorderRadius.all(Radius.circular(20)),
+    this.padding = const EdgeInsets.all(12),
+    this.margin,
+    this.blur = 18,
+    this.backgroundOpacity = 0.22,
+    this.tintOpacityTop = 0.28,
+    this.tintOpacityBottom = 0.12,
+    this.strokeOpacity = 0.38,
+  });
+
+  final Widget child;
+  final BorderRadius borderRadius;
+  final EdgeInsetsGeometry padding;
+  final EdgeInsetsGeometry? margin;
+  final double blur;
+  final double backgroundOpacity;
+  final double tintOpacityTop;
+  final double tintOpacityBottom;
+  final double strokeOpacity;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: margin,
+      decoration: BoxDecoration(borderRadius: borderRadius),
+      child: ClipRRect(
+        borderRadius: borderRadius,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+          child: Container(
+            padding: padding,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: tintOpacityTop),
+                  Colors.white.withValues(alpha: tintOpacityBottom),
+                ],
+              ),
+              color: Colors.white.withValues(alpha: backgroundOpacity),
+              borderRadius: borderRadius,
+              border: Border.all(
+                color: Colors.white.withValues(alpha: strokeOpacity),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withValues(alpha: 0.25),
+                  blurRadius: 24,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class GlassCard extends StatelessWidget {
+  const GlassCard({super.key, required this.child, this.padding, this.radius});
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+  final double? radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Glass(
+      padding:
+          padding ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      borderRadius: BorderRadius.circular(radius ?? 16),
+      blur: 16,
+      backgroundOpacity: 0.18,
+      child: child,
+    );
+  }
+}
+
+class GlassButton extends StatefulWidget {
+  const GlassButton({
+    super.key,
+    required this.onTap,
+    required this.text,
+    this.icon,
+    this.enabled = true,
+    this.primary = false,
+    this.busy = false,
+    this.primaryColor,
+  });
+
+  final VoidCallback? onTap;
+  final String text;
+  final IconData? icon;
+  final bool enabled;
+  final bool primary;
+  final bool busy;
+  final Color? primaryColor;
+
+  @override
+  State<GlassButton> createState() => _GlassButtonState();
+}
+
+class _GlassButtonState extends State<GlassButton> {
+  bool _pressed = false;
+
+  Color get _accent =>
+      widget.primaryColor ??
+      (widget.primary ? const Color(0xFF007AFF) : Colors.black87);
+
+  @override
+  Widget build(BuildContext context) {
+    final bool disabled = !widget.enabled || widget.busy;
+    final Color edge = disabled
+        ? Colors.black.withValues(alpha: 0.15)
+        : _accent.withValues(alpha: 0.50);
+
+    final Color textColor = disabled
+        ? Colors.black.withValues(alpha: 0.35)
+        : (widget.primary ? Colors.white : Colors.black.withValues(alpha: 0.9));
+
+    final Color iconColor = disabled
+        ? Colors.black.withValues(alpha: 0.35)
+        : (widget.primary ? Colors.white : Colors.black.withValues(alpha: 0.9));
+
+    final List<Color> bg = disabled
+        ? [
+            Colors.white.withValues(alpha: 0.14),
+            Colors.white.withValues(alpha: 0.08),
+          ]
+        : widget.primary
+        ? [_accent.withValues(alpha: 0.55), _accent.withValues(alpha: 0.32)]
+        : [
+            Colors.white.withValues(alpha: 0.30),
+            Colors.white.withValues(alpha: 0.16),
+          ];
+
+    final shadow = disabled
+        ? [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ]
+        : [
+            BoxShadow(
+              color: _accent.withValues(alpha: 0.35),
+              blurRadius: 18,
+              spreadRadius: 1.5,
+              offset: const Offset(0, 8),
+            ),
+          ];
+
+    final scale = _pressed ? 0.98 : 1.0;
+
+    return AnimatedScale(
+      scale: scale,
+      duration: const Duration(milliseconds: 90),
+      curve: Curves.easeOut,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: bg,
+              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: edge, width: 1.2),
+              boxShadow: shadow,
+            ),
+            child: InkWell(
+              onTap: (widget.enabled && !widget.busy) ? widget.onTap : null,
+              onHighlightChanged: (v) => setState(() => _pressed = v),
+              splashColor: _accent.withValues(alpha: disabled ? 0.0 : 0.18),
+              highlightColor: Colors.white.withValues(
+                alpha: disabled ? 0.0 : 0.10,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.busy)
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(textColor),
+                      ),
+                    )
+                  else if (widget.icon != null) ...[
+                    Icon(widget.icon, size: 18, color: iconColor),
+                  ],
+                  if (!widget.busy && widget.icon != null)
+                    const SizedBox(width: 8),
+                  Text(
+                    widget.text,
+                    style: GoogleFonts.notoSansThai(
+                      fontWeight: FontWeight.w900,
+                      color: textColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class RiderDeliveryTrackingPage extends StatefulWidget {
   final String baseUrl;
@@ -54,7 +283,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
   StreamSubscription<Position>? _posSub;
 
   static const double kGateMeters = 20.0;
-
   bool _pickedUp = false;
   bool _actionBusy = false;
 
@@ -72,7 +300,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
   final _picker = ImagePicker();
   File? _pickupPhotoFile;
   File? _deliverPhotoFile;
-
   String? _pickupPhotoUrl;
   String? _deliverPhotoUrl;
 
@@ -90,6 +317,14 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
 
   double? _lastHeadingDegFromSensor;
   double? _lastSpeedMpsFromSensor;
+
+  String? _shipmentTitle;
+  String? _senderName;
+  String? _senderPhone;
+  String? _receiverName;
+  String? _receiverPhone;
+  String? _senderAvatarUrl;
+  String? _receiverAvatarUrl;
 
   @override
   void initState() {
@@ -128,7 +363,26 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
             jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
         final data = body['data'] as Map<String, dynamic>?;
 
-        final status = (data?['status'] ?? '').toString();
+        _shipmentTitle = (data?['title'] ?? '').toString();
+
+        String toAbs(String? p) {
+          if (p == null || p.isEmpty) return '';
+          if (p.startsWith('http://') || p.startsWith('https://')) return p;
+          final base = widget.baseUrl.endsWith('/')
+              ? widget.baseUrl.substring(0, widget.baseUrl.length - 1)
+              : widget.baseUrl;
+          return '$base$p';
+        }
+
+        final s = data?['sender'] as Map<String, dynamic>?;
+        _senderName = (s?['name'] ?? '').toString();
+        _senderPhone = (s?['phone'] ?? '').toString();
+        _senderAvatarUrl = toAbs((s?['avatar_path'] as String?)?.trim());
+
+        final r = data?['receiver'] as Map<String, dynamic>?;
+        _receiverName = (r?['name'] ?? '').toString();
+        _receiverPhone = (r?['phone'] ?? '').toString();
+        _receiverAvatarUrl = toAbs((r?['avatar_path'] as String?)?.trim());
 
         try {
           final p = data?['pickup'] as Map<String, dynamic>?;
@@ -149,26 +403,18 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
           }
         } catch (_) {}
 
-        String? pickupPath = (data?['pickup_photo_path'] as String?)?.trim();
-        String? deliverPath = (data?['deliver_photo_path'] as String?)?.trim();
+        _pickupPhotoUrl = toAbs(
+          (data?['pickup_photo_path'] as String?)?.trim(),
+        );
+        _deliverPhotoUrl = toAbs(
+          (data?['deliver_photo_path'] as String?)?.trim(),
+        );
 
-        String toAbs(String? p) {
-          if (p == null || p.isEmpty) return '';
-          if (p.startsWith('http://') || p.startsWith('https://')) return p;
-          final base = widget.baseUrl.endsWith('/')
-              ? widget.baseUrl.substring(0, widget.baseUrl.length - 1)
-              : widget.baseUrl;
-          return '$base$p';
-        }
-
-        _pickupPhotoUrl = toAbs(pickupPath);
-        _deliverPhotoUrl = toAbs(deliverPath);
-
+        final status = (data?['status'] ?? '').toString();
         if (status == 'DELIVERED') {
           if (mounted) Get.offAll(() => const RiderHomePage());
           return;
         }
-
         if (status == 'PICKED_UP_EN_ROUTE') {
           _pickedUp = true;
           _navToDrop = true;
@@ -182,7 +428,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
           _updateRoute();
         }
       } else {
-        // ไม่ใช่ 200 → แสดง error ที่อ่านออก (ถ้ามี)
         final err = jsonDecode(utf8.decode(resp.bodyBytes));
         final msg =
             err is Map &&
@@ -192,9 +437,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
             : 'โหลดงานไม่สำเร็จ (HTTP ${resp.statusCode})';
         Get.snackbar('ผิดพลาด', msg, snackPosition: SnackPosition.BOTTOM);
       }
-    } catch (_) {
-      // เงียบไว้ตามเดิม หรือจะแจ้งเตือนก็ได้
-    }
+    } catch (_) {}
   }
 
   Future<void> _initLocation() async {
@@ -209,14 +452,17 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
       }
 
       final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
+
       _onPosition(LatLng(pos.latitude, pos.longitude), raw: pos);
 
       _posSub = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.best,
-          distanceFilter: 3,
+          distanceFilter: 0,
         ),
       ).listen((p) => _onPosition(LatLng(p.latitude, p.longitude), raw: p));
 
@@ -492,7 +738,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     final uri = Uri.parse(
       '${widget.baseUrl}/shipments/${widget.shipmentId}/pickup',
     );
-
     try {
       final resp = await http
           .post(uri, headers: await authHeaders())
@@ -531,7 +776,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     final uri = Uri.parse(
       '${widget.baseUrl}/shipments/${widget.shipmentId}/deliver',
     );
-
     try {
       final resp = await http
           .post(uri, headers: await authHeaders())
@@ -628,9 +872,20 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
         ? (canDoNow ? null : 'ต้องอยู่ในระยะ ≤ 20 เมตรจากจุดรับ')
         : (canDoNow ? null : 'ต้องอยู่ในระยะ ≤ 20 เมตรจากจุดส่ง');
 
-    return WillPopScope(
-      onWillPop: () async => false,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (!didPop) {
+          await showGlassAlert(
+            title: 'ไม่สามารถออกได้',
+            message: 'กรุณาทำรายการให้เสร็จก่อนออกจากหน้านี้',
+            okText: 'ตกลง',
+          );
+        }
+      },
       child: Scaffold(
+        extendBodyBehindAppBar: true,
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
           automaticallyImplyLeading: false,
           centerTitle: true,
@@ -659,6 +914,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                   ? Center(child: Text(_error!))
                   : Stack(
                       children: [
+                        // MAP
                         FlutterMap(
                           mapController: _map,
                           options: MapOptions(
@@ -760,75 +1016,79 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                           ],
                         ),
 
+                        // TOP PANELS: distance/eta + job card
                         Positioned(
                           left: 12,
                           right: 12,
-                          top: 12,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.08),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ],
-                            ),
-                            child: DefaultTextStyle(
-                              style: GoogleFonts.notoSansThai(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.black.withValues(alpha: 0.75),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          'ไปจุดรับ: ${_mLabel(_distToPickup)}',
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: Text(
-                                          'ไปจุดส่ง: ${_mLabel(_distToDrop)}',
-                                          textAlign: TextAlign.right,
-                                        ),
-                                      ),
-                                    ],
+                          top: kToolbarHeight + 36,
+                          child: Column(
+                            children: [
+                              GlassCard(
+                                child: DefaultTextStyle(
+                                  style: GoogleFonts.notoSansThai(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.black.withValues(alpha: 0.75),
                                   ),
-                                  if (_etaText != null ||
-                                      _routeDistanceMeters != null) ...[
-                                    const SizedBox(height: 6),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            'เส้นทาง: ${_routeDistanceMeters == null ? '-' : _mLabel(_routeDistanceMeters)}',
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              'ไปจุดรับ: ${_mLabel(_distToPickup)}',
+                                            ),
                                           ),
-                                        ),
-                                        Expanded(
-                                          child: Text(
-                                            'เวลาโดยประมาณ: ${_etaText ?? '-'}',
-                                            textAlign: TextAlign.right,
+                                          Expanded(
+                                            child: Text(
+                                              'ไปจุดส่ง: ${_mLabel(_distToDrop)}',
+                                              textAlign: TextAlign.right,
+                                            ),
                                           ),
+                                        ],
+                                      ),
+                                      if (_etaText != null ||
+                                          _routeDistanceMeters != null) ...[
+                                        const SizedBox(height: 6),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                'เส้นทาง: ${_routeDistanceMeters == null ? '-' : _mLabel(_routeDistanceMeters)}',
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: Text(
+                                                'เวลาโดยประมาณ: ${_etaText ?? '-'}',
+                                                textAlign: TextAlign.right,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ],
-                                    ),
-                                  ],
-                                ],
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ),
+                              const SizedBox(height: 10),
+                              GlassCard(
+                                child: _JobMiniCard(
+                                  title: _shipmentTitle ?? 'งานจัดส่ง',
+                                  senderName: _senderName ?? '—',
+                                  senderPhone: _senderPhone ?? '—',
+                                  receiverName: _receiverName ?? '—',
+                                  receiverPhone: _receiverPhone ?? '—',
+                                  senderAvatarUrl: _senderAvatarUrl,
+                                  receiverAvatarUrl: _receiverAvatarUrl,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
 
+                        // IMAGE PREVIEW ROW
                         Positioned(
                           left: 12,
                           right: 12,
@@ -836,68 +1096,57 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                           child: Row(
                             children: [
                               Expanded(
-                                child: _PreviewBox(
-                                  file: _pickupPhotoFile,
-                                  url: _pickupPhotoUrl,
-                                  placeholder: _pickedUp
-                                      ? 'รับแล้ว'
-                                      : 'ยังไม่มีรูปตอนรับ',
+                                child: GlassCard(
+                                  padding: EdgeInsets.zero,
+                                  child: _PreviewBox(
+                                    file: _pickupPhotoFile,
+                                    url: _pickupPhotoUrl,
+                                    placeholder: _pickedUp
+                                        ? 'รับแล้ว'
+                                        : 'ยังไม่มีรูปตอนรับ',
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 10),
                               Expanded(
-                                child: _PreviewBox(
-                                  file: _deliverPhotoFile,
-                                  url: _deliverPhotoUrl,
-                                  placeholder: _pickedUp
-                                      ? 'ยังไม่มีรูปตอนส่ง'
-                                      : 'รอรับก่อนถึงถ่ายตอนส่งได้',
+                                child: GlassCard(
+                                  padding: EdgeInsets.zero,
+                                  child: _PreviewBox(
+                                    file: _deliverPhotoFile,
+                                    url: _deliverPhotoUrl,
+                                    placeholder: _pickedUp
+                                        ? 'ยังไม่มีรูปตอนส่ง'
+                                        : 'รอรับก่อนถึงถ่ายตอนส่งได้',
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
 
+                        // BOTTOM ACTION BUTTON (glass)
                         Positioned(
                           left: 12,
                           right: 12,
-                          bottom: 12,
+                          bottom: 36,
                           child: Tooltip(
                             message: hintText ?? '',
-                            child: ElevatedButton.icon(
-                              onPressed: (!canDoNow || _actionBusy)
-                                  ? null
-                                  : _onAction,
-                              icon: _actionBusy
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Icon(Icons.camera_alt_outlined),
-                              label: Text(
-                                isPickupPhase
-                                    ? 'ถ่ายรูป & รับพัสดุ'
-                                    : 'ถ่ายรูป & ส่งสำเร็จ',
-                                style: GoogleFonts.notoSansThai(
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: isPickupPhase
-                                    ? Colors.blue
-                                    : Colors.green,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
+                            child: GlassButton(
+                              primary: true,
+                              primaryColor: isPickupPhase
+                                  ? const Color(
+                                      0xFF007AFF,
+                                    ) // ฟ้าน้ำทะเลตอน "ถ่ายรูป & รับพัสดุ"
+                                  : const Color(
+                                      0xFF34C759,
+                                    ), // เขียวสดตอน "ถ่ายรูป & ส่งสำเร็จ"
+                              enabled: canDoNow && !_actionBusy,
+                              busy: _actionBusy,
+                              onTap: _onAction,
+                              icon: Icons.camera_alt_outlined,
+                              text: isPickupPhase
+                                  ? 'ถ่ายรูป & รับพัสดุ'
+                                  : 'ถ่ายรูป & ส่งสำเร็จ',
                             ),
                           ),
                         ),
@@ -908,6 +1157,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
   }
 }
 
+/// Preview (wrapped by GlassCard from parent)
 class _PreviewBox extends StatefulWidget {
   final File? file;
   final String? url;
@@ -924,17 +1174,11 @@ class _PreviewBoxState extends State<_PreviewBox> {
 
   @override
   Widget build(BuildContext context) {
-    final border = Border.all(color: Colors.black.withValues(alpha: 0.05));
-    final deco = BoxDecoration(
-      color: const Color(0xFFF0F2F5),
-      borderRadius: BorderRadius.circular(12),
-      border: border,
-    );
-
+    // decoration/ขอบ สีพื้น — ตัดออก ให้สไตล์มาจาก GlassCard ชั้นนอก
     if (widget.file != null) {
       return Container(
         height: 86,
-        decoration: deco,
+        decoration: const BoxDecoration(),
         clipBehavior: Clip.antiAlias,
         child: Image.file(
           widget.file!,
@@ -946,28 +1190,24 @@ class _PreviewBoxState extends State<_PreviewBox> {
 
     final rawUrl = (widget.url ?? '').trim();
     if (rawUrl.isEmpty) {
-      return _placeholderBox(deco, widget.placeholder ?? 'No photo');
+      return _placeholderBox(widget.placeholder ?? 'No photo');
     }
 
     final withBuster = _appendCacheBuster(rawUrl, _retry);
     final uri = Uri.tryParse(withBuster);
 
     if (uri == null || (!uri.hasScheme && !withBuster.startsWith('/'))) {
-      return _placeholderBox(deco, widget.placeholder ?? 'No photo');
+      return _placeholderBox(widget.placeholder ?? 'No photo');
     }
 
     return Container(
       height: 86,
-      decoration: deco,
+      decoration: const BoxDecoration(),
       clipBehavior: Clip.antiAlias,
       child: Image.network(
         withBuster,
         fit: BoxFit.cover,
         width: double.infinity,
-        loadingBuilder: (ctx, child, progress) {
-          if (progress == null) return child;
-          return _loadingBox();
-        },
         errorBuilder: (ctx, err, stack) {
           return _errorBox(
             onRetry: () {
@@ -980,10 +1220,9 @@ class _PreviewBoxState extends State<_PreviewBox> {
     );
   }
 
-  Widget _placeholderBox(BoxDecoration deco, String text) {
+  Widget _placeholderBox(String text) {
     return Container(
       height: 86,
-      decoration: deco,
       alignment: Alignment.center,
       child: Text(
         text,
@@ -995,21 +1234,8 @@ class _PreviewBoxState extends State<_PreviewBox> {
     );
   }
 
-  Widget _loadingBox() {
-    return Container(
-      color: const Color(0xFFF0F2F5),
-      alignment: Alignment.center,
-      child: const SizedBox(
-        width: 22,
-        height: 22,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      ),
-    );
-  }
-
   Widget _errorBox({required VoidCallback onRetry}) {
     return Container(
-      color: const Color(0xFFF0F2F5),
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Column(
@@ -1018,8 +1244,8 @@ class _PreviewBoxState extends State<_PreviewBox> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.broken_image_outlined, color: Colors.black54),
-              const SizedBox(height: 6),
+              const Icon(Icons.broken_image_outlined, color: Colors.black54),
+              const SizedBox(width: 6),
               Text(
                 ' โหลดรูปไม่สำเร็จ',
                 style: GoogleFonts.notoSansThai(
@@ -1054,5 +1280,280 @@ class _PreviewBoxState extends State<_PreviewBox> {
     return url.contains('?')
         ? '$url&v=${DateTime.now().millisecondsSinceEpoch + retry}'
         : '$url?v=${DateTime.now().millisecondsSinceEpoch + retry}';
+  }
+}
+
+/// Glass alert (คงของเดิมไว้)
+Future<void> showGlassAlert({
+  required String title,
+  required String message,
+  String okText = 'ตกลง',
+  VoidCallback? onOk,
+  bool barrierDismissible = false,
+}) {
+  return Get.dialog(
+    Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      elevation: 0,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: 0.28),
+                  Colors.white.withValues(alpha: 0.12),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.38),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withValues(alpha: 0.25),
+                  blurRadius: 24,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.notoSansThai(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black.withValues(alpha: 0.95),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.notoSansThai(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                    color: Colors.black.withValues(alpha: 0.72),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: _GlassButton(
+                    text: okText,
+                    onTap: () {
+                      if (onOk != null) onOk();
+                      Get.back();
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+    barrierColor: Colors.black.withValues(alpha: 0.20),
+    barrierDismissible: barrierDismissible,
+  );
+}
+
+class _GlassButton extends StatelessWidget {
+  const _GlassButton({required this.text, required this.onTap});
+  final String text;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 4),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Material(
+            color: Colors.white.withValues(alpha: 0.35),
+            child: InkWell(
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                child: Text(
+                  text,
+                  style: GoogleFonts.notoSansThai(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black.withValues(alpha: 0.9),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Job card (ปรับให้กลืนกับ GlassCard ภายนอก — ไม่มีพื้นหลัง/เงาทึบในตัว)
+class _JobMiniCard extends StatelessWidget {
+  const _JobMiniCard({
+    required this.title,
+    required this.senderName,
+    required this.senderPhone,
+    required this.receiverName,
+    required this.receiverPhone,
+    this.senderAvatarUrl,
+    this.receiverAvatarUrl,
+  });
+
+  final String title;
+  final String senderName;
+  final String senderPhone;
+  final String receiverName;
+  final String receiverPhone;
+  final String? senderAvatarUrl;
+  final String? receiverAvatarUrl;
+
+  bool _isHttp(String? s) =>
+      s != null &&
+      (s.startsWith('http://') ||
+          s.startsWith('https://') ||
+          s.startsWith('/'));
+
+  Widget _avatar(String? url, {IconData fallback = Icons.person}) {
+    if (_isHttp(url) && (url ?? '').trim().isNotEmpty) {
+      return CircleAvatar(
+        radius: 14,
+        backgroundColor: Colors.grey.shade200,
+        backgroundImage: NetworkImage(url!),
+        onBackgroundImageError: (_, __) {},
+      );
+    }
+    return CircleAvatar(
+      radius: 14,
+      backgroundColor: Colors.grey.shade300,
+      child: Icon(fallback, size: 16, color: Colors.white),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTextStyle(
+      style: GoogleFonts.notoSansThai(
+        fontSize: 13.5,
+        fontWeight: FontWeight.w800,
+        color: Colors.black.withValues(alpha: 0.8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title.isEmpty ? 'งานจัดส่ง' : 'ชื่องาน: $title',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.notoSansThai(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _avatar(
+                senderAvatarUrl,
+                fallback: Icons.person_pin_circle_rounded,
+              ),
+              const SizedBox(width: 8),
+              const Text('ผู้ส่ง: '),
+              Expanded(
+                child: Text(senderName, overflow: TextOverflow.ellipsis),
+              ),
+              _CopyChip(text: senderPhone),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              _avatar(receiverAvatarUrl, fallback: Icons.place_rounded),
+              const SizedBox(width: 8),
+              const Text('ผู้รับ: '),
+              Expanded(
+                child: Text(receiverName, overflow: TextOverflow.ellipsis),
+              ),
+              _CopyChip(text: receiverPhone),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CopyChip extends StatelessWidget {
+  const _CopyChip({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = text.trim().isEmpty || text.trim() == '—';
+    return InkWell(
+      onTap: disabled
+          ? null
+          : () async {
+              await Clipboard.setData(ClipboardData(text: text));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  backgroundColor: Colors.black.withValues(alpha: 0.65),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  content: const Text('คัดลอกเบอร์แล้ว'),
+                  duration: const Duration(milliseconds: 900),
+                ),
+              );
+            },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: disabled ? Colors.grey.shade200 : Colors.black87,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.copy_rounded,
+              size: 14,
+              color: disabled ? Colors.black54 : Colors.white,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              (text.isEmpty ? '—' : text),
+              style: GoogleFonts.notoSansThai(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w900,
+                color: disabled ? Colors.black54 : Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
