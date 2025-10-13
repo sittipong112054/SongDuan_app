@@ -687,7 +687,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                                   point: _pickup,
                                   radius: 20,
                                   useRadiusInMeter: true,
-                                  color: Colors.blue.withOpacity(0.18),
+                                  color: Colors.blue.withValues(alpha: 0.18),
                                   borderStrokeWidth: 1.5,
                                   borderColor: Colors.blueAccent,
                                 ),
@@ -695,7 +695,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                                   point: _dropoff,
                                   radius: 20,
                                   useRadiusInMeter: true,
-                                  color: Colors.green.withOpacity(0.18),
+                                  color: Colors.green.withValues(alpha: 0.18),
                                   borderStrokeWidth: 1.5,
                                   borderColor: Colors.green,
                                 ),
@@ -744,15 +744,15 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                                         points: _routeLine,
                                         strokeWidth: 7,
                                         color: _pickedUp
-                                            ? Colors.greenAccent.withOpacity(
-                                                0.8,
+                                            ? Colors.greenAccent.withValues(
+                                                alpha: 0.8,
                                               )
-                                            : Colors.blueAccent.withOpacity(
-                                                0.8,
+                                            : Colors.blueAccent.withValues(
+                                                alpha: 0.8,
                                               ),
                                         borderStrokeWidth: 2.5,
-                                        borderColor: Colors.black.withOpacity(
-                                          0.2,
+                                        borderColor: Colors.black.withValues(
+                                          alpha: 0.2,
                                         ),
                                       ),
                                     ],
@@ -774,7 +774,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                               borderRadius: BorderRadius.circular(12),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.08),
+                                  color: Colors.black.withValues(alpha: 0.08),
                                   blurRadius: 12,
                                   offset: const Offset(0, 6),
                                 ),
@@ -784,7 +784,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                               style: GoogleFonts.notoSansThai(
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w800,
-                                color: Colors.black.withOpacity(0.75),
+                                color: Colors.black.withValues(alpha: 0.75),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -924,7 +924,7 @@ class _PreviewBoxState extends State<_PreviewBox> {
 
   @override
   Widget build(BuildContext context) {
-    final border = Border.all(color: Colors.black.withOpacity(0.05));
+    final border = Border.all(color: Colors.black.withValues(alpha: 0.05));
     final deco = BoxDecoration(
       color: const Color(0xFFF0F2F5),
       borderRadius: BorderRadius.circular(12),

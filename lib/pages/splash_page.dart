@@ -109,7 +109,7 @@ class _SplashPageState extends State<SplashPage> {
                     color: Colors.white,
                     shadows: [
                       Shadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha: 0.2),
                         offset: const Offset(0, 4),
                         blurRadius: 6,
                       ),
@@ -121,7 +121,7 @@ class _SplashPageState extends State<SplashPage> {
             Text(
               'เรียลไทม์ ส่งไว ถึงชัวร์',
               style: GoogleFonts.notoSansThai(
-                color: const Color(0xFF8C8C8C).withOpacity(0.65),
+                color: const Color(0xFF8C8C8C).withValues(alpha: 0.65),
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
               ),

@@ -558,7 +558,7 @@ class _AddressPickList extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withValues(alpha: 0.08),
                 blurRadius: 12,
                 offset: const Offset(0, 6),
               ),
@@ -574,7 +574,7 @@ class _AddressPickList extends StatelessWidget {
                     ? const Color(0xFFFF7A00)
                     : const Color(0xFFE9ECEF),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.black.withOpacity(0.08)),
+                border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
               ),
               child: selectedIndex == i
                   ? const Icon(Icons.check, size: 16, color: Colors.white)
@@ -657,7 +657,7 @@ class _ReceiverCard extends StatelessWidget {
                             : const Color(0xFFE9ECEF),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: Colors.black.withOpacity(0.08),
+                          color: Colors.black.withValues(alpha: 0.08),
                         ),
                       ),
                       child: selectedIndex == i
@@ -690,7 +690,7 @@ class _ReceiverCard extends StatelessWidget {
                               (m['address'] ?? '').toString(),
                               style: GoogleFonts.notoSansThai(
                                 fontSize: 13.5,
-                                color: Colors.black.withOpacity(0.80),
+                                color: Colors.black.withValues(alpha: 0.80),
                               ),
                             ),
                           ),
@@ -712,7 +712,7 @@ class _ReceiverCard extends StatelessWidget {
     borderRadius: BorderRadius.circular(18),
     boxShadow: [
       BoxShadow(
-        color: Colors.black.withOpacity(0.08),
+        color: Colors.black.withValues(alpha: 0.08),
         blurRadius: 14,
         offset: const Offset(0, 8),
       ),
@@ -780,7 +780,7 @@ class _CameraCardState extends State<_CameraCard> {
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.10),
+              color: Colors.black.withValues(alpha: 0.10),
               blurRadius: 12,
               offset: const Offset(0, 6),
             ),
@@ -845,7 +845,7 @@ class _CameraCardState extends State<_CameraCard> {
 //                   style: GoogleFonts.notoSansThai(
 //                     fontSize: 14.5,
 //                     fontWeight: FontWeight.w800,
-//                     color: Colors.black.withOpacity(0.7),
+//                     color: Colors.black.withValues(alpha:0.7),
 //                   ),
 //                 ),
 //                 const SizedBox(width: 8),
@@ -872,7 +872,7 @@ class _NoteField extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.12),
+            color: Colors.black.withValues(alpha: 0.12),
             offset: const Offset(0, 6),
             blurRadius: 10,
           ),
@@ -885,7 +885,7 @@ class _NoteField extends StatelessWidget {
         decoration: InputDecoration(
           hintText: 'ตัวอย่าง รั้วสีขาว หลังคาสีส้ม (ถ้ามี)',
           hintStyle: GoogleFonts.notoSansThai(
-            color: Colors.black.withOpacity(0.35),
+            color: Colors.black.withValues(alpha: 0.35),
             fontSize: 14,
             fontWeight: FontWeight.w700,
           ),

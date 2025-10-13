@@ -124,7 +124,9 @@ class _RiderProfilePageState extends State<RiderProfilePage> {
                                       style: GoogleFonts.notoSansThai(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w700,
-                                        color: Colors.black.withOpacity(0.4),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.4,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -406,7 +408,7 @@ class _VehiclePictureBox extends StatelessWidget {
     final hint = Text(
       'Picture of vehicle',
       style: GoogleFonts.notoSansThai(
-        color: Colors.black.withOpacity(0.25),
+        color: Colors.black.withValues(alpha: 0.25),
         fontSize: 16,
         fontWeight: FontWeight.w700,
       ),
@@ -434,7 +436,7 @@ class _VehiclePictureBox extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.12),
+                color: Colors.black.withValues(alpha: 0.12),
                 offset: const Offset(0, 6),
                 blurRadius: 10,
               ),

@@ -59,7 +59,7 @@ class OrderCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.14),
+            color: Colors.black.withValues(alpha: 0.14),
             blurRadius: 14,
             offset: const Offset(0, 8),
           ),
@@ -84,13 +84,8 @@ class OrderCard extends StatelessWidget {
                     ? Image.network(
                         imagePath!,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stack) => const Center(
-                          child: Icon(
-                            Icons.broken_image_outlined,
-                            size: 40,
-                            color: Colors.grey,
-                          ),
-                        ),
+                        errorBuilder: (_, __, ___) =>
+                            const _PhotoPlaceholder(text: 'โหลดรูปไม่สำเร็จ'),
                         loadingBuilder: (context, child, progress) {
                           if (progress == null) return child;
                           return const Center(
@@ -140,7 +135,7 @@ class OrderCard extends StatelessWidget {
                         style: GoogleFonts.notoSansThai(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w800,
-                          color: Colors.black.withOpacity(0.75),
+                          color: Colors.black.withValues(alpha: 0.75),
                         ),
                       ),
                       Text(
@@ -148,7 +143,7 @@ class OrderCard extends StatelessWidget {
                         style: GoogleFonts.notoSansThai(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
-                          color: Colors.black.withOpacity(0.45),
+                          color: Colors.black.withValues(alpha: 0.45),
                         ),
                       ),
                       Text(
@@ -158,7 +153,7 @@ class OrderCard extends StatelessWidget {
                         style: GoogleFonts.notoSansThai(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w800,
-                          color: Colors.black.withOpacity(0.75),
+                          color: Colors.black.withValues(alpha: 0.75),
                         ),
                       ),
                     ],
@@ -170,7 +165,7 @@ class OrderCard extends StatelessWidget {
                   style: GoogleFonts.notoSansThai(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
-                    color: Colors.black.withOpacity(0.45),
+                    color: Colors.black.withValues(alpha: 0.45),
                   ),
                 ),
               ],
@@ -206,6 +201,36 @@ class OrderCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PhotoPlaceholder extends StatelessWidget {
+  const _PhotoPlaceholder({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(
+          Icons.image_not_supported_rounded,
+          size: 36,
+          color: Colors.grey,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          text,
+          style: GoogleFonts.notoSansThai(
+            color: Colors.black54,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+      ],
     );
   }
 }

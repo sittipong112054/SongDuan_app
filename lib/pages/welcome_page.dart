@@ -36,7 +36,7 @@ class _WelcomePageState extends State<WelcomePage> {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.07),
+                      color: Colors.black.withValues(alpha: 0.07),
                       blurRadius: 16,
                       offset: const Offset(0, 8),
                     ),
@@ -76,7 +76,7 @@ class _WelcomePageState extends State<WelcomePage> {
                       color: Colors.white,
                       shadows: [
                         Shadow(
-                          color: Colors.black.withOpacity(0.2),
+                          color: Colors.black.withValues(alpha: 0.2),
                           offset: const Offset(0, 4),
                           blurRadius: 6,
                         ),
@@ -88,7 +88,7 @@ class _WelcomePageState extends State<WelcomePage> {
               Text(
                 'เรียลไทม์ ส่งไว ถึงชัวร์',
                 style: GoogleFonts.notoSansThai(
-                  color: const Color(0xFF8C8C8C).withOpacity(0.65),
+                  color: const Color(0xFF8C8C8C).withValues(alpha: 0.65),
                   fontSize: 20,
                   fontWeight: FontWeight.w600,
                 ),
@@ -126,7 +126,7 @@ class _WelcomePageState extends State<WelcomePage> {
                       style: GoogleFonts.abel(
                         fontWeight: FontWeight.w900,
                         fontSize: 18,
-                        color: _textDark.withOpacity(0.6),
+                        color: _textDark.withValues(alpha: 0.6),
                       ),
                     ),
                   ),

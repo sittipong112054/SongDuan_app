@@ -130,7 +130,9 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
                                       style: GoogleFonts.notoSansThai(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w700,
-                                        color: Colors.black.withOpacity(0.4),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.4,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -253,15 +255,6 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
                       ),
                     ),
                   ),
-                  // const SizedBox(height: 8),
-                  // Text(
-                  //   _selectedAddress!,
-                  //   style: GoogleFonts.notoSansThai(
-                  //     fontSize: 14,
-                  //     fontWeight: FontWeight.w700,
-                  //     color: Colors.black.withOpacity(0.7),
-                  //   ),
-                  // ),
                 ],
 
                 const SizedBox(height: 18),
@@ -385,8 +378,6 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
         );
       }
 
-      // request.headers['Authorization'] = 'Bearer ...';
-
       final streamed = await request.send().timeout(
         const Duration(seconds: 30),
       );
@@ -448,7 +439,7 @@ class _PickFromMapTile extends StatelessWidget {
       color: const Color(0xFFF0F2F5),
       borderRadius: BorderRadius.circular(14),
       elevation: 4,
-      shadowColor: Colors.black.withOpacity(0.12),
+      shadowColor: Colors.black.withValues(alpha: 0.12),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
@@ -469,7 +460,7 @@ class _PickFromMapTile extends StatelessWidget {
                   style: GoogleFonts.notoSansThai(
                     fontSize: 15.5,
                     fontWeight: FontWeight.w700,
-                    color: Colors.black.withOpacity(0.5),
+                    color: Colors.black.withValues(alpha: 0.5),
                   ),
                 ),
               ),

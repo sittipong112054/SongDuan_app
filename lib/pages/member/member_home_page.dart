@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -200,7 +201,7 @@ class _MemberHomePageState extends State<MemberHomePage> {
           Positioned(
             left: 0,
             right: 0,
-            bottom: 30,
+            bottom: 10,
             child: Center(
               child: Container(
                 color: Colors.transparent,
@@ -239,26 +240,65 @@ class CustomGradientNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          height: 70,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.3)),
-          ),
-          child: Row(
-            children: List.generate(items.length, (i) {
-              final selected = i == currentIndex;
-              return _NavButton(
-                item: items[i],
-                selected: selected,
-                onTap: () => onTap(i),
-              );
-            }),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return SafeArea(
+      minimum: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            height: 70,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDark
+                    ? [
+                        Colors.white.withValues(alpha: 0.08),
+                        Colors.white.withValues(alpha: 0.03),
+                      ]
+                    : [
+                        Colors.white.withValues(alpha: 0.28),
+                        Colors.white.withValues(alpha: 0.14),
+                      ],
+              ),
+              borderRadius: BorderRadius.circular(18),
+
+              border: Border.all(
+                color: Colors.white.withValues(alpha: isDark ? 0.28 : 0.38),
+                width: 1.2,
+              ),
+
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blueGrey.withValues(
+                    alpha: isDark ? 0.35 : 0.18,
+                  ),
+                  blurRadius: 22,
+                  spreadRadius: 1,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Row(
+                  children: List.generate(items.length, (i) {
+                    final selected = i == currentIndex;
+                    return Expanded(
+                      child: _NavButton(
+                        item: items[i],
+                        selected: selected,
+                        onTap: () => onTap(i),
+                      ),
+                    );
+                  }),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -279,53 +319,100 @@ class _NavButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ts = MediaQuery.of(context).textScaleFactor.clamp(1.0, 1.2);
+    final ts = MediaQuery.of(context).textScaler.scale(1.0);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final onColor = Colors.white;
+    final offIcon = isDark ? Colors.white60 : Colors.black54;
 
     return Expanded(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-          decoration: BoxDecoration(
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: item.label,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
             borderRadius: BorderRadius.circular(12),
-            gradient: selected
-                ? const LinearGradient(
-                    colors: [
-                      _MemberHomePageState._orange,
-                      _MemberHomePageState._gold,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
-                : null,
-            color: selected ? null : Colors.transparent,
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                item.icon,
-                size: selected ? 24 : 22,
-                color: selected ? Colors.white : Colors.grey.shade700,
+            onTap: () {
+              HapticFeedback.selectionClick();
+              onTap();
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              height: double.infinity,
+              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                gradient: selected
+                    ? const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          _MemberHomePageState._orange,
+                          _MemberHomePageState._gold,
+                        ],
+                      )
+                    : null,
+                border: selected
+                    ? Border.all(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        width: 1,
+                      )
+                    : null,
+                boxShadow: selected
+                    ? [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 10,
+                          offset: const Offset(0, 5),
+                        ),
+                      ]
+                    : null,
               ),
-              const SizedBox(height: 2),
-              Text(
-                item.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.notoSansThai(
-                  fontWeight: selected ? FontWeight.w900 : FontWeight.w400,
-                  fontSize: 12 * ts,
-                  color: selected ? Colors.white : Colors.grey.shade700,
-                ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedScale(
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOutCubic,
+                    scale: selected ? 1.1 : 1.0,
+                    child: Icon(
+                      item.icon,
+                      size: selected ? 24 : 22,
+                      color: selected ? onColor : offIcon,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 160),
+                    switchInCurve: Curves.easeOut,
+                    switchOutCurve: Curves.easeIn,
+                    child: selected
+                        ? Text(
+                            item.label,
+                            key: const ValueKey('label-on'),
+                            maxLines: 1,
+                            overflow: TextOverflow.fade,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.notoSansThai(
+                              fontWeight: FontWeight.w900,
+                              height: 1.0,
+                              fontSize: 15 * ts,
+                              color: onColor,
+                            ),
+                          )
+                        : const SizedBox(
+                            key: ValueKey('label-off'),
+                            height: 0,
+                            width: 0,
+                          ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

@@ -53,7 +53,7 @@ class _RegisterPageState extends State<RegisterPage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          color: _textDark.withOpacity(0.85),
+          color: _textDark.withValues(alpha: 0.85),
           onPressed: () => Get.back(),
           splashRadius: 22,
         ),
@@ -95,7 +95,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       color: _textDark,
                       shadows: [
                         Shadow(
-                          color: Colors.black.withOpacity(0.15),
+                          color: Colors.black.withValues(alpha: 0.15),
                           offset: const Offset(0, 2),
                           blurRadius: 6,
                         ),
@@ -225,7 +225,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     TextSpan(
                       style: GoogleFonts.nunitoSans(
                         fontSize: 13.5,
-                        color: _textDark.withOpacity(0.6),
+                        color: _textDark.withValues(alpha: 0.6),
                       ),
                       children: [
                         const TextSpan(text: 'Already have an account? '),
@@ -291,7 +291,7 @@ class _RoleChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = selected ? Colors.black : const Color(0xFFE9E9E9);
-    final fg = selected ? Colors.white : Colors.black.withOpacity(0.5);
+    final fg = selected ? Colors.white : Colors.black.withValues(alpha: 0.5);
 
     return GestureDetector(
       onTap: onTap,
@@ -305,7 +305,7 @@ class _RoleChip extends StatelessWidget {
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.18),
+                    color: Colors.black.withValues(alpha: 0.18),
                     offset: const Offset(0, 6),
                     blurRadius: 10,
                   ),

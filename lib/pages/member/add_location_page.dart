@@ -406,7 +406,7 @@ class _PickFromMapTile extends StatelessWidget {
       color: const Color(0xFFF0F2F5),
       borderRadius: BorderRadius.circular(14),
       elevation: 4,
-      shadowColor: Colors.black.withOpacity(0.12),
+      shadowColor: Colors.black.withValues(alpha: 0.12),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
@@ -479,7 +479,9 @@ Future<bool> showConfirmDeleteAddressDialog() async {
                 Text(
                   'ต้องการลบที่อยู่นี้หรือไม่?\nการลบไม่สามารถย้อนกลับได้',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8),
+                    color: theme.textTheme.bodyMedium?.color?.withValues(
+                      alpha: 0.8,
+                    ),
                   ),
                   textAlign: TextAlign.center,
                 ),

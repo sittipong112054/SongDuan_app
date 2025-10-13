@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -27,7 +28,7 @@ class _ProfilePageState extends State<ProfilePage> {
   late final Map<String, dynamic> user;
   late final String userId;
   late final String name;
-  late final String username; // <-- เพิ่ม
+  late final String username;
   late final String roleLabel;
   late final bool isRider;
   late final String phone;
@@ -228,6 +229,144 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  void _openImage(String url, {String? title}) {
+    Get.dialog(
+      Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        elevation: 0,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withValues(alpha: 0.25),
+                        Colors.white.withValues(alpha: 0.08),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.35),
+                      width: 1.2,
+                    ),
+                    borderRadius: BorderRadius.circular(28),
+                  ),
+                  padding: const EdgeInsets.all(10),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: InteractiveViewer(
+                      minScale: 0.8,
+                      maxScale: 5,
+                      child: AspectRatio(
+                        aspectRatio: 1,
+                        child: Image.network(
+                          url,
+                          fit: BoxFit.contain,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                              ),
+                            );
+                          },
+                          errorBuilder: (_, __, ___) => const SizedBox(
+                            height: 320,
+                            child: Center(
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                color: Colors.white70,
+                                size: 48,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              Positioned(
+                right: 15,
+                top: 15,
+                child: SafeArea(
+                  child: Container(
+                    constraints: const BoxConstraints(),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.90),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: Colors.black.withValues(alpha: 0.1),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: Get.back,
+                        child: const Padding(
+                          padding: EdgeInsets.all(10),
+                          child: Icon(
+                            Icons.close_rounded,
+                            color: Colors.black87,
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              if (title != null && title.isNotEmpty)
+                Positioned(
+                  left: 14,
+                  bottom: 15,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        child: Text(
+                          title,
+                          style: GoogleFonts.notoSansThai(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+      barrierColor: Colors.black.withValues(alpha: 0.25),
+      barrierDismissible: true,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final double avatarSize = MediaQuery.of(context).size.width / 3;
@@ -272,8 +411,16 @@ class _ProfilePageState extends State<ProfilePage> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(left: 10),
+                  GestureDetector(
+                    onTap: () {
+                      if (avatarPath != null && avatarPath!.isNotEmpty) {
+                        final b = (_baseUrl ?? '').trimRight();
+                        final url = avatarPath!.startsWith('/')
+                            ? '$b$avatarPath'
+                            : avatarPath!;
+                        _openImage(url, title: 'รูปโปรไฟล์');
+                      }
+                    },
                     child: CircleAvatar(
                       radius: avatarSize / 2,
                       backgroundImage: _resolveAvatar(avatarPath),
@@ -293,12 +440,11 @@ class _ProfilePageState extends State<ProfilePage> {
                             color: _textDark,
                           ),
                         ),
-                        // <-- แสดง username ใต้ชื่อ
                         Text(
                           '@$username',
                           style: GoogleFonts.notoSansThai(
                             fontSize: 13,
-                            color: Colors.black.withOpacity(0.55),
+                            color: Colors.black.withValues(alpha: 0.55),
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -306,7 +452,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           roleLabel,
                           style: GoogleFonts.notoSansThai(
                             fontSize: 14,
-                            color: Colors.black.withOpacity(0.45),
+                            color: Colors.black.withValues(alpha: 0.45),
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -329,7 +475,7 @@ class _ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 10),
               _ReadOnlyField(hint: 'Name', value: name),
               const SizedBox(height: 10),
-              _ReadOnlyField(hint: 'Username', value: username), // <-- เพิ่ม
+              _ReadOnlyField(hint: 'Username', value: username),
               const SizedBox(height: 10),
               _ReadOnlyField(hint: 'Phone Number', value: phone),
 
@@ -371,8 +517,19 @@ class _ProfilePageState extends State<ProfilePage> {
                             .toString(),
                   ),
                   const SizedBox(height: 10),
-                  _VehiclePictureBox(
-                    imageProvider: _resolveVehicleImage(_vehicle!),
+                  GestureDetector(
+                    onTap: () {
+                      final vimg = _resolveVehicleImage(_vehicle!);
+                      if (vimg is NetworkImage) {
+                        final url = (vimg.url).toString();
+                        _openImage(url, title: 'ภาพยานพาหนะ');
+                      } else {
+                        Get.snackbar('ไม่พบรูป', 'ไม่มี URL ของรูปภาพ');
+                      }
+                    },
+                    child: _VehiclePictureBox(
+                      imageProvider: _resolveVehicleImage(_vehicle!),
+                    ),
                   ),
                 ] else ...[
                   _AddressTile(
@@ -553,7 +710,7 @@ class _VehiclePictureBox extends StatelessWidget {
         message,
         style: GoogleFonts.notoSansThai(
           fontSize: 14,
-          color: Colors.black.withOpacity(0.55),
+          color: Colors.black.withValues(alpha: 0.55),
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -575,7 +732,7 @@ class _ReadOnlyField extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.10),
+            color: Colors.black.withValues(alpha: 0.10),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -588,7 +745,7 @@ class _ReadOnlyField extends StatelessWidget {
             child: Text(
               hint,
               style: GoogleFonts.notoSansThai(
-                color: Colors.black.withOpacity(0.35),
+                color: Colors.black.withValues(alpha: 0.35),
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -596,7 +753,7 @@ class _ReadOnlyField extends StatelessWidget {
           Text(
             value,
             style: GoogleFonts.notoSansThai(
-              color: Colors.black.withOpacity(0.8),
+              color: Colors.black.withValues(alpha: 0.8),
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -619,7 +776,7 @@ class _AddressTile extends StatelessWidget {
       color: const Color(0xFFF5F6F7),
       borderRadius: BorderRadius.circular(14),
       elevation: 6,
-      shadowColor: Colors.black.withOpacity(0.12),
+      shadowColor: Colors.black.withValues(alpha: 0.12),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
@@ -631,7 +788,7 @@ class _AddressTile extends StatelessWidget {
               Expanded(
                 child: DefaultTextStyle(
                   style: GoogleFonts.notoSansThai(
-                    color: Colors.black.withOpacity(0.8),
+                    color: Colors.black.withValues(alpha: 0.8),
                     fontWeight: FontWeight.w900,
                   ),
                   child: Column(
@@ -645,7 +802,7 @@ class _AddressTile extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.notoSansThai(
-                          color: Colors.black.withOpacity(0.35),
+                          color: Colors.black.withValues(alpha: 0.35),
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -656,7 +813,7 @@ class _AddressTile extends StatelessWidget {
               Icon(
                 Icons.chevron_right_rounded,
                 size: 28,
-                color: Colors.black.withOpacity(0.6),
+                color: Colors.black.withValues(alpha: 0.6),
               ),
             ],
           ),
@@ -678,7 +835,7 @@ class _AddressSkeleton extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.10),
+            color: Colors.black.withValues(alpha: 0.10),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -704,7 +861,7 @@ class _AddressSkeleton extends StatelessWidget {
       child: Container(
         height: 12,
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.08),
+          color: Colors.black.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(8),
         ),
       ),
@@ -723,7 +880,7 @@ class _ErrorTile extends StatelessWidget {
       color: const Color(0xFFFFF3F1),
       borderRadius: BorderRadius.circular(14),
       elevation: 6,
-      shadowColor: Colors.black.withOpacity(0.12),
+      shadowColor: Colors.black.withValues(alpha: 0.12),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: onRetry,
@@ -738,7 +895,7 @@ class _ErrorTile extends StatelessWidget {
                 child: Text(
                   message,
                   style: GoogleFonts.notoSansThai(
-                    color: Colors.black.withOpacity(0.8),
+                    color: Colors.black.withValues(alpha: 0.8),
                     fontWeight: FontWeight.w900,
                   ),
                 ),

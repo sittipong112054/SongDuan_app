@@ -50,8 +50,11 @@ class _MapPickPageState extends State<MapPickPage> {
           permission != LocationPermission.denied &&
           permission != LocationPermission.deniedForever) {
         final pos = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+          ),
         );
+
         final gps = LatLng(pos.latitude, pos.longitude);
 
         setState(() {
@@ -131,8 +134,11 @@ class _MapPickPageState extends State<MapPickPage> {
   Future<void> _goToMyLocation() async {
     try {
       final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
+
       final me = LatLng(pos.latitude, pos.longitude);
       _mapController.move(me, 16);
       setState(() {
@@ -218,7 +224,7 @@ class _MapPickPageState extends State<MapPickPage> {
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.12),
+                            color: Colors.black.withValues(alpha: 0.12),
                             blurRadius: 8,
                             offset: const Offset(0, 3),
                           ),
@@ -309,7 +315,7 @@ class _MapPickPageState extends State<MapPickPage> {
                       style: GoogleFonts.nunitoSans(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
-                        color: Colors.black.withOpacity(0.7),
+                        color: Colors.black.withValues(alpha: 0.7),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -320,7 +326,7 @@ class _MapPickPageState extends State<MapPickPage> {
                       style: GoogleFonts.nunitoSans(
                         fontSize: 14.5,
                         fontWeight: FontWeight.w600,
-                        color: Colors.black.withOpacity(0.9),
+                        color: Colors.black.withValues(alpha: 0.9),
                       ),
                     ),
                   ] else
@@ -329,7 +335,7 @@ class _MapPickPageState extends State<MapPickPage> {
                       style: GoogleFonts.nunitoSans(
                         fontSize: 14.5,
                         fontWeight: FontWeight.w600,
-                        color: Colors.black.withOpacity(0.7),
+                        color: Colors.black.withValues(alpha: 0.7),
                       ),
                     ),
                   const SizedBox(height: 16),

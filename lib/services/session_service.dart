@@ -12,7 +12,7 @@ class SessionService extends GetxService {
   String? phone;
   String? avatarPath;
   String? accessToken;
-  DateTime? tokenExpiresAt; // จาก exp ใน JWT (ถ้ามี)
+  DateTime? tokenExpiresAt;
 
   Future<SessionService> init() async {
     currentUserId = _box.read('user_id');
@@ -22,14 +22,13 @@ class SessionService extends GetxService {
     phone = _box.read('phone');
     avatarPath = _box.read('avatar_path');
     accessToken = _box.read('access_token');
-    final expMillis = _box.read('token_expires_at'); // เก็บเป็น millis
+    final expMillis = _box.read('token_expires_at');
     if (expMillis is int) {
       tokenExpiresAt = DateTime.fromMillisecondsSinceEpoch(expMillis);
     }
     return this;
   }
 
-  /// เซฟจาก response: รองรับได้ทั้ง { data: { user, token } } และ { user, token }
   void saveFromLoginResponse(Map<String, dynamic> json) {
     final u = (json['data']?['user'] ?? json['user']) as Map? ?? {};
     final token = (json['data']?['token'] ?? json['token'])?.toString();
@@ -42,7 +41,6 @@ class SessionService extends GetxService {
     avatarPath = u['avatar_path']?.toString();
     accessToken = token;
 
-    // พยายามถอด exp จาก JWT (ถ้ามี)
     tokenExpiresAt = _parseJwtExp(token);
 
     _box.write('user_id', currentUserId);
@@ -55,7 +53,6 @@ class SessionService extends GetxService {
     _box.write('token_expires_at', tokenExpiresAt?.millisecondsSinceEpoch);
   }
 
-  /// อัปเดตเฉพาะข้อมูล user (เช่นหลังแก้โปรไฟล์) โดยไม่แตะ token
   void updateUser(Map<String, dynamic> user) {
     name = user['name']?.toString() ?? name;
     username = user['username']?.toString() ?? username;
@@ -80,11 +77,10 @@ class SessionService extends GetxService {
     _box.erase();
   }
 
-  /// ใช้ใน splash: ต้องมี user และ token ยังไม่หมดอายุ (ถ้ารู้เวลา)
   bool get isLoggedIn {
     if (currentUserId == null) return false;
     if (accessToken == null || accessToken!.isEmpty) return false;
-    if (tokenExpiresAt == null) return true; // กรณี backend ไม่ใส่ exp ใน JWT
+    if (tokenExpiresAt == null) return true;
     return DateTime.now().isBefore(tokenExpiresAt!);
   }
 
@@ -94,7 +90,6 @@ class SessionService extends GetxService {
     return DateTime.now().isAfter(tokenExpiresAt!);
   }
 
-  /// header สำหรับ request ที่ต้อง auth
   Map<String, String> authHeaders({Map<String, String>? extra}) {
     return {
       'Content-Type': 'application/json; charset=utf-8',
@@ -104,7 +99,6 @@ class SessionService extends GetxService {
     };
   }
 
-  /// ถอด exp จาก JWT (วินาที epoch) → DateTime
   DateTime? _parseJwtExp(String? jwt) {
     if (jwt == null || jwt.isEmpty) return null;
     final parts = jwt.split('.');
@@ -114,7 +108,6 @@ class SessionService extends GetxService {
       final map = jsonDecode(payload);
       final exp = map['exp'];
       if (exp is int) {
-        // exp เป็น seconds → แปลงเป็น milliseconds
         return DateTime.fromMillisecondsSinceEpoch(exp * 1000);
       }
     } catch (_) {}
@@ -133,7 +126,6 @@ class SessionService extends GetxService {
       case 0:
         break;
       default:
-        // ความยาวแปลก ๆ ก็ปล่อยไปให้ base64.decode โยน error เอง
         break;
     }
     return utf8.decode(base64.decode(out));

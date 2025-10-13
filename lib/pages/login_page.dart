@@ -63,7 +63,7 @@ class _LoginPagesState extends State<LoginPages> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          color: _textDark.withOpacity(0.85),
+          color: _textDark.withValues(alpha: 0.85),
           splashRadius: 22,
           onPressed: () {
             Get.offAll(() => const WelcomePage());
@@ -107,7 +107,7 @@ class _LoginPagesState extends State<LoginPages> {
                               color: _textDark,
                               shadows: [
                                 Shadow(
-                                  color: Colors.black.withOpacity(0.15),
+                                  color: Colors.black.withValues(alpha: 0.15),
                                   offset: const Offset(0, 2),
                                   blurRadius: 6,
                                 ),
@@ -214,7 +214,7 @@ class _LoginPagesState extends State<LoginPages> {
                               "Don't have an account? ",
                               style: GoogleFonts.nunitoSans(
                                 fontSize: 13.5,
-                                color: _textDark.withOpacity(0.6),
+                                color: _textDark.withValues(alpha: 0.6),
                               ),
                             ),
                             TextButton(

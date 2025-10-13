@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -75,56 +77,137 @@ class OrderDetailCard extends StatelessWidget {
   void _openImage(String url, {String? title}) {
     Get.dialog(
       Dialog(
-        child: Stack(
-          children: [
-            InteractiveViewer(
-              child: AspectRatio(
-                aspectRatio: 1,
-                child: Image.network(
-                  url,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const SizedBox(
-                    height: 320,
-                    child: Center(
-                      child: Icon(Icons.broken_image_outlined, size: 48),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              right: 8,
-              top: 8,
-              child: IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: Get.back,
-              ),
-            ),
-            if (title != null && title.isNotEmpty)
-              Positioned(
-                left: 12,
-                bottom: 12,
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(48),
+        elevation: 0,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
                   decoration: BoxDecoration(
-                    color: Colors.black87,
-                    borderRadius: BorderRadius.circular(8),
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withValues(alpha: 0.25),
+                        Colors.white.withValues(alpha: 0.08),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.35),
+                      width: 1.2,
+                    ),
+                    borderRadius: BorderRadius.circular(28),
                   ),
-                  child: Text(
-                    title,
-                    style: GoogleFonts.notoSansThai(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
+                  padding: const EdgeInsets.all(10),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: InteractiveViewer(
+                      minScale: 0.8,
+                      maxScale: 5,
+                      child: AspectRatio(
+                        aspectRatio: 1,
+                        child: Image.network(
+                          url,
+                          fit: BoxFit.contain,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                              ),
+                            );
+                          },
+                          errorBuilder: (_, __, ___) => const SizedBox(
+                            height: 320,
+                            child: Center(
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                color: Colors.white70,
+                                size: 48,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-          ],
+
+              Positioned(
+                right: 15,
+                top: 15,
+                child: SafeArea(
+                  child: Container(
+                    constraints: const BoxConstraints(),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.90),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: Colors.black.withValues(alpha: 0.1),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: Get.back,
+                        child: const Padding(
+                          padding: EdgeInsets.all(10),
+                          child: Icon(
+                            Icons.close_rounded,
+                            color: Colors.black87,
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              if (title != null && title.isNotEmpty)
+                Positioned(
+                  left: 14,
+                  bottom: 15,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        child: Text(
+                          title,
+                          style: GoogleFonts.notoSansThai(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
+      barrierColor: Colors.black.withValues(alpha: 0.25),
       barrierDismissible: true,
     );
   }
@@ -140,7 +223,7 @@ class OrderDetailCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.12),
+            color: Colors.black.withValues(alpha: 0.12),
             blurRadius: 18,
             offset: const Offset(0, 10),
           ),
@@ -224,16 +307,15 @@ class OrderDetailCard extends StatelessWidget {
                                   ),
                                 );
                               },
-                              errorBuilder: (context, error, stack) => Icon(
-                                Icons.broken_image_outlined,
-                                size: 56,
-                                color: Colors.black.withOpacity(0.45),
-                              ),
+                              errorBuilder: (_, __, ___) =>
+                                  const _PhotoPlaceholder(
+                                    text: 'โหลดรูปไม่สำเร็จ',
+                                  ),
                             )
                           : Icon(
                               Icons.image_not_supported_rounded,
                               size: 56,
-                              color: Colors.black.withOpacity(0.45),
+                              color: Colors.black.withValues(alpha: 0.45),
                             ),
                     ),
                     if (hasMainImage)
@@ -243,7 +325,7 @@ class OrderDetailCard extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.45),
+                            color: Colors.black.withValues(alpha: 0.45),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(
@@ -306,7 +388,7 @@ class OrderDetailCard extends StatelessWidget {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: colors.last.withOpacity(0.12),
+                  color: colors.last.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -386,7 +468,7 @@ class _PersonBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final grey = Colors.black.withOpacity(0.7);
+    final grey = Colors.black.withValues(alpha: 0.7);
 
     Widget avatarWidget;
     if (_isHttpUrl(info.avatar)) {
@@ -501,7 +583,7 @@ class _StatusPhotoTile extends StatelessWidget {
               decoration: BoxDecoration(
                 color: const Color(0xFFF0F2F5),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.black.withOpacity(0.06)),
+                border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
               ),
               clipBehavior: Clip.antiAlias,
               child: has
@@ -540,7 +622,7 @@ class _PhotoPlaceholder extends StatelessWidget {
         text,
         style: GoogleFonts.notoSansThai(
           color: Colors.black54,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );

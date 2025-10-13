@@ -324,12 +324,12 @@ class _SenderMapPageState extends State<SenderMapPage> {
 
   Color _routeColorFor(String status, Color base) {
     if (status == 'RIDER_ACCEPTED') {
-      return Colors.blue.withOpacity(0.18);
+      return Colors.blue.withValues(alpha: 0.18);
     }
     if (status == 'PICKED_UP_EN_ROUTE') {
-      return Colors.green.withOpacity(0.18);
+      return Colors.green.withValues(alpha: 0.18);
     }
-    return base.withOpacity(0.7);
+    return base.withValues(alpha: 0.7);
   }
 
   @override
@@ -466,8 +466,8 @@ class _SenderMapPageState extends State<SenderMapPage> {
             point: it.pickupLatLng!,
             radius: 22,
             useRadiusInMeter: true,
-            color: color.withOpacity(0.14),
-            borderColor: color.withOpacity(0.7),
+            color: color.withValues(alpha: 0.14),
+            borderColor: color.withValues(alpha: 0.7),
             borderStrokeWidth: 1.5,
           ),
         );
@@ -478,8 +478,8 @@ class _SenderMapPageState extends State<SenderMapPage> {
             point: it.dropoffLatLng!,
             radius: 22,
             useRadiusInMeter: true,
-            color: color.withOpacity(0.14),
-            borderColor: color.withOpacity(0.7),
+            color: color.withValues(alpha: 0.14),
+            borderColor: color.withValues(alpha: 0.7),
             borderStrokeWidth: 1.5,
           ),
         );
@@ -492,7 +492,7 @@ class _SenderMapPageState extends State<SenderMapPage> {
           Polyline(
             points: routePts,
             strokeWidth: 5.5,
-            color: lineColor.withOpacity(0.95),
+            color: lineColor.withValues(alpha: 0.95),
           ),
         );
       } else {
@@ -507,7 +507,7 @@ class _SenderMapPageState extends State<SenderMapPage> {
             Polyline(
               points: pts,
               strokeWidth: 3.5,
-              color: lineColor.withOpacity(0.6),
+              color: lineColor.withValues(alpha: 0.6),
             ),
           );
         }
@@ -556,7 +556,7 @@ class _SenderMapPageState extends State<SenderMapPage> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 14,
             offset: const Offset(0, 8),
           ),
@@ -652,8 +652,10 @@ class _LegendChip extends StatelessWidget {
       selected: selected,
       onSelected: (_) => onTap(),
       selectedColor: color,
-      backgroundColor: color.withOpacity(0.10),
-      shape: StadiumBorder(side: BorderSide(color: color.withOpacity(0.60))),
+      backgroundColor: color.withValues(alpha: 0.10),
+      shape: StadiumBorder(
+        side: BorderSide(color: color.withValues(alpha: 0.60)),
+      ),
     );
   }
 }

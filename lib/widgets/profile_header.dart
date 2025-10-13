@@ -60,7 +60,7 @@ class ProfileHeader extends StatelessWidget {
               role,
               style: GoogleFonts.notoSansThai(
                 fontSize: 13,
-                color: Colors.black.withOpacity(0.45),
+                color: Colors.black.withValues(alpha: 0.45),
                 fontWeight: FontWeight.w700,
               ),
             ),
