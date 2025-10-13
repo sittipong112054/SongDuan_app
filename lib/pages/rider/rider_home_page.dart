@@ -483,92 +483,109 @@ class _RiderHomePageState extends State<RiderHomePage> {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _refreshAll,
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+          child: Column(
             children: [
-              ProfileHeader(
-                name: _name,
-                role: _roleLabel,
-                image: _user['avatar_path']?.toString().isNotEmpty == true
-                    ? _user['avatar_path'] as String
-                    : 'assets/images/default_avatar.png',
-                baseUrl: _baseUrl,
-                onMorePressed: () =>
-                    Get.to(() => const ProfilePage(), arguments: _user),
-              ),
-              const SizedBox(height: 16),
-              const SectionTitle('รายการส่งของที่สามารถรับได้ (ว่าง)'),
-              const SizedBox(height: 12),
-
-              if (_loading) ...[
-                const _LoadingCard(),
-                const SizedBox(height: 12),
-                const _LoadingCard(),
-                const SizedBox(height: 12),
-                const _LoadingCard(),
-              ] else if (_error != null) ...[
-                _ErrorTile(message: _error!, onRetry: _refreshAll),
-              ] else if (_items.isEmpty) ...[
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Text(
-                      'ยังไม่มีข้อมูลการจัดส่งที่ว่าง',
-                      style: GoogleFonts.notoSansThai(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black54,
-                      ),
-                    ),
-                  ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+                child: ProfileHeader(
+                  name: _name,
+                  role: _roleLabel,
+                  image: _user['avatar_path']?.toString().isNotEmpty == true
+                      ? _user['avatar_path'] as String
+                      : 'assets/images/default_avatar.png',
+                  baseUrl: _baseUrl,
+                  onMorePressed: () =>
+                      Get.to(() => const ProfilePage(), arguments: _user),
                 ),
-              ] else ...[
-                ..._items.map((m) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Stack(
-                      children: [
-                        OrderCard(
-                          title: m['title'] as String,
-                          from: m['from'] as String,
-                          to: m['to'] as String,
-                          distanceText: m['distance'] as String,
-                          imagePath: m['image'] as String?,
-                          status: _mapStatus((m['status'] ?? '').toString()),
-                          onDetail: () => _openDetail(m),
-                        ),
-                        if (m['sender_avatar'] != null)
-                          Positioned(
-                            top: 8,
-                            left: 8,
-                            child: Container(
-                              padding: const EdgeInsets.all(2),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.15),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              child: CircleAvatar(
-                                radius: 16,
-                                backgroundImage: NetworkImage(
-                                  m['sender_avatar'] as String,
-                                ),
-                                backgroundColor: Colors.grey.shade200,
+              ),
+              const SizedBox(height: 8),
+
+              Expanded(
+                child: Container(
+                  color: const Color(0xFFF8F8F8),
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+                    children: [
+                      const SectionTitle('รายการส่งของที่สามารถรับได้ (ว่าง)'),
+                      const SizedBox(height: 8),
+
+                      if (_loading) ...[
+                        const _LoadingCard(),
+                        const SizedBox(height: 12),
+                        const _LoadingCard(),
+                        const SizedBox(height: 12),
+                        const _LoadingCard(),
+                      ] else if (_error != null) ...[
+                        _ErrorTile(message: _error!, onRetry: _refreshAll),
+                      ] else if (_items.isEmpty) ...[
+                        Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Text(
+                              'ยังไม่มีข้อมูลการจัดส่งที่ว่าง',
+                              style: GoogleFonts.notoSansThai(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black54,
                               ),
                             ),
                           ),
+                        ),
+                      ] else ...[
+                        ..._items.map((m) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Stack(
+                              children: [
+                                OrderCard(
+                                  title: m['title'] as String,
+                                  from: m['from'] as String,
+                                  to: m['to'] as String,
+                                  distanceText: m['distance'] as String,
+                                  imagePath: m['image'] as String?,
+                                  status: _mapStatus(
+                                    (m['status'] ?? '').toString(),
+                                  ),
+                                  onDetail: () => _openDetail(m),
+                                ),
+                                if (m['sender_avatar'] != null)
+                                  Positioned(
+                                    top: 8,
+                                    left: 8,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(
+                                              0.15,
+                                            ),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ],
+                                      ),
+                                      child: CircleAvatar(
+                                        radius: 16,
+                                        backgroundImage: NetworkImage(
+                                          m['sender_avatar'] as String,
+                                        ),
+                                        backgroundColor: Colors.grey.shade200,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+                        }),
                       ],
-                    ),
-                  );
-                }),
-              ],
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),

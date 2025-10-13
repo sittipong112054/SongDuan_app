@@ -327,70 +327,73 @@ class _SenderMapPageState extends State<SenderMapPage> {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          const SizedBox(height: 8),
-          _buildMapCard(),
-          const SizedBox(height: 8),
-          _buildLegendBar(),
-          const SizedBox(height: 12),
-
-          if (_loading) ...[
-            const _SkeletonCard(),
+    return Container(
+      color: const Color(0xFFF8F8F8),
+      child: RefreshIndicator(
+        onRefresh: _load,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            const SizedBox(height: 8),
+            _buildMapCard(),
+            const SizedBox(height: 8),
+            _buildLegendBar(),
             const SizedBox(height: 12),
-            const _SkeletonCard(),
-          ] else if (_error != null) ...[
-            _ErrorTile(message: _error!, onRetry: _load),
-          ] else if (_items.isEmpty) ...[
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Text(
-                  'ยังไม่มีงานขาออกที่กำลังนำส่ง',
-                  style: GoogleFonts.notoSansThai(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black54,
+
+            if (_loading) ...[
+              const _SkeletonCard(),
+              const SizedBox(height: 12),
+              const _SkeletonCard(),
+            ] else if (_error != null) ...[
+              _ErrorTile(message: _error!, onRetry: _load),
+            ] else if (_items.isEmpty) ...[
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Text(
+                    'ยังไม่มีงานขาออกที่กำลังนำส่ง',
+                    style: GoogleFonts.notoSansThai(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black54,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ] else ...[
-            ..._items.indexed.map((e) {
-              final i = e.$1;
-              final it = e.$2;
-              final status = switch (it.status) {
-                'RIDER_ACCEPTED' => OrderStatus.riderAccepted,
-                'PICKED_UP_EN_ROUTE' => OrderStatus.delivering,
-                'DELIVERED' => OrderStatus.delivered,
-                _ => OrderStatus.waitingPickup,
-              };
-              final color = _palette[i % _palette.length];
+            ] else ...[
+              ..._items.indexed.map((e) {
+                final i = e.$1;
+                final it = e.$2;
+                final status = switch (it.status) {
+                  'RIDER_ACCEPTED' => OrderStatus.riderAccepted,
+                  'PICKED_UP_EN_ROUTE' => OrderStatus.delivering,
+                  'DELIVERED' => OrderStatus.delivered,
+                  _ => OrderStatus.waitingPickup,
+                };
+                final color = _palette[i % _palette.length];
 
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: DeliveryStatusCard(
-                  number: i + 1,
-                  badgeColor: color,
-                  title: it.title,
-                  by: it.riderName,
-                  from: it.pickupText,
-                  to: it.dropoffText,
-                  status: status,
-                  onTap: () {
-                    setState(() => _focusedIndex = i);
-                    _fitShipment(i);
-                  },
-                ),
-              );
-            }),
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: DeliveryStatusCard(
+                    number: i + 1,
+                    badgeColor: color,
+                    title: it.title,
+                    by: it.riderName,
+                    from: it.pickupText,
+                    to: it.dropoffText,
+                    status: status,
+                    onTap: () {
+                      setState(() => _focusedIndex = i);
+                      _fitShipment(i);
+                    },
+                  ),
+                );
+              }),
+            ],
+            const SizedBox(height: 40),
           ],
-          const SizedBox(height: 40),
-        ],
+        ),
       ),
     );
   }

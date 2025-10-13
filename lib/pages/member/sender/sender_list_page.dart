@@ -237,93 +237,96 @@ class _SenderListPageState extends State<SenderListPage> {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _fetchShipments,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
-        children: [
-          const SizedBox(height: 10),
-          SectionTitle('รายการส่งของของฉัน'),
-          const SizedBox(height: 10),
+    return Container(
+      color: const Color(0xFFF8F8F8),
+      child: RefreshIndicator(
+        onRefresh: _fetchShipments,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
+          children: [
+            const SizedBox(height: 10),
+            SectionTitle('รายการส่งของของฉัน'),
+            const SizedBox(height: 10),
 
-          if (_loading) ...[
-            _LoadingCard(),
-            const SizedBox(height: 12),
-            _LoadingCard(),
-            const SizedBox(height: 12),
-            _LoadingCard(),
-          ] else if (_error != null) ...[
-            _ErrorTile(message: _error!, onRetry: _fetchShipments),
-          ] else if (_items.isEmpty) ...[
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Text(
-                  'ยังไม่มีข้อมูลการจัดส่ง',
-                  style: GoogleFonts.notoSansThai(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black54,
+            if (_loading) ...[
+              _LoadingCard(),
+              const SizedBox(height: 12),
+              _LoadingCard(),
+              const SizedBox(height: 12),
+              _LoadingCard(),
+            ] else if (_error != null) ...[
+              _ErrorTile(message: _error!, onRetry: _fetchShipments),
+            ] else if (_items.isEmpty) ...[
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Text(
+                    'ยังไม่มีข้อมูลการจัดส่ง',
+                    style: GoogleFonts.notoSansThai(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black54,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ] else ...[
-            ..._items.map((m) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Stack(
-                  children: [
-                    OrderCard(
-                      title: m['title'] as String,
-                      from: m['from'] as String,
-                      to: m['to'] as String,
-                      distanceText: m['distance'] as String,
-                      imagePath: m['image'] as String?,
-                      status: m['status'] as OrderStatus,
-                      onDetail: () => _openDetail(m),
-                    ),
+            ] else ...[
+              ..._items.map((m) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Stack(
+                    children: [
+                      OrderCard(
+                        title: m['title'] as String,
+                        from: m['from'] as String,
+                        to: m['to'] as String,
+                        distanceText: m['distance'] as String,
+                        imagePath: m['image'] as String?,
+                        status: m['status'] as OrderStatus,
+                        onDetail: () => _openDetail(m),
+                      ),
 
-                    if (m['rider_avatar'] != null || m['rider_name'] != null)
-                      Positioned(
-                        top: 8,
-                        left: 8,
-                        child: Tooltip(
-                          message: (m['rider_name'] as String?) ?? 'Rider',
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.15),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: CircleAvatar(
-                              radius: 16,
-                              backgroundImage: (m['rider_avatar'] != null)
-                                  ? NetworkImage(m['rider_avatar'] as String)
-                                  : const AssetImage(
-                                          'assets/images/default_avatar.png',
-                                        )
-                                        as ImageProvider,
-                              backgroundColor: Colors.grey.shade200,
+                      if (m['rider_avatar'] != null || m['rider_name'] != null)
+                        Positioned(
+                          top: 8,
+                          left: 8,
+                          child: Tooltip(
+                            message: (m['rider_name'] as String?) ?? 'Rider',
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.15),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: CircleAvatar(
+                                radius: 16,
+                                backgroundImage: (m['rider_avatar'] != null)
+                                    ? NetworkImage(m['rider_avatar'] as String)
+                                    : const AssetImage(
+                                            'assets/images/default_avatar.png',
+                                          )
+                                          as ImageProvider,
+                                backgroundColor: Colors.grey.shade200,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
-              );
-            }),
+                    ],
+                  ),
+                );
+              }),
+            ],
+            const SizedBox(height: 40),
           ],
-          const SizedBox(height: 40),
-        ],
+        ),
       ),
     );
   }

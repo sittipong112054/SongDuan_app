@@ -359,165 +359,168 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
 
     final itemCount = _itemCtrls.where((c) => c.text.trim().isNotEmpty).length;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
-      children: [
-        const SizedBox(height: 8),
+    return Container(
+      color: const Color(0xFFF8F8F8),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
+        children: [
+          const SizedBox(height: 8),
 
-        Row(
-          children: [
-            SectionTitle("เลือกจุดรับของ (ผู้ส่ง)"),
-            const Spacer(),
-            TextButton.icon(
-              onPressed: _loadingPickup ? null : _manualRefreshPickup,
-              icon: _loadingPickup
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.refresh),
-              label: const Text('Refresh'),
+          Row(
+            children: [
+              SectionTitle("เลือกจุดรับของ (ผู้ส่ง)"),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: _loadingPickup ? null : _manualRefreshPickup,
+                icon: _loadingPickup
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh),
+                label: const Text('Refresh'),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+          if (_loadingPickup) ...[
+            const _SkeletonLine(),
+            const SizedBox(height: 8),
+            const _SkeletonLine(),
+          ] else if (_pickupError != null) ...[
+            _ErrorTile(message: _pickupError!, onRetry: _fetchPickupAddresses),
+          ] else if (_pickupAddresses.isEmpty) ...[
+            _HintTile(text: 'ยังไม่มีที่อยู่รับของ โปรดเพิ่มในโปรไฟล์ก่อน'),
+          ] else ...[
+            _AddressPickList(
+              addresses: _pickupAddresses,
+              selectedIndex: _selectedPickupIndex,
+              onPick: (i) => setState(() => _selectedPickupIndex = i),
             ),
           ],
-        ),
 
-        const SizedBox(height: 8),
-        if (_loadingPickup) ...[
-          const _SkeletonLine(),
-          const SizedBox(height: 8),
-          const _SkeletonLine(),
-        ] else if (_pickupError != null) ...[
-          _ErrorTile(message: _pickupError!, onRetry: _fetchPickupAddresses),
-        ] else if (_pickupAddresses.isEmpty) ...[
-          _HintTile(text: 'ยังไม่มีที่อยู่รับของ โปรดเพิ่มในโปรไฟล์ก่อน'),
-        ] else ...[
-          _AddressPickList(
-            addresses: _pickupAddresses,
-            selectedIndex: _selectedPickupIndex,
-            onPick: (i) => setState(() => _selectedPickupIndex = i),
-          ),
-        ],
+          const SizedBox(height: 14),
+          SectionTitle("เลือกจุดส่งของ (ผู้รับ)"),
+          const SizedBox(height: 14),
 
-        const SizedBox(height: 14),
-        SectionTitle("เลือกจุดส่งของ (ผู้รับ)"),
-        const SizedBox(height: 14),
-
-        CustomTextField(
-          hint: 'หมายเลขโทรศัพท์ของผู้รับ',
-          controller: _phoneCtrl,
-          keyboardType: TextInputType.phone,
-          prefixIcon: const Icon(Icons.search, color: Colors.black45),
-          suffixIcon: Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: _busy
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : TextButton(
-                    onPressed: _searchReceiver,
-                    child: const Text('ค้นหา'),
-                  ),
-          ),
-          onFieldSubmitted: (_) => _searchReceiver(),
-        ),
-        const SizedBox(height: 12),
-
-        if ((_results.isNotEmpty) || (_receiverName?.isNotEmpty ?? false))
-          _ReceiverCard(
-            name: _receiverName ?? '—',
-            phone: _receiverPhone ?? _phoneCtrl.text.trim(),
-            avatar: _resolveAvatar(_receiverAvatar),
-            results: _results,
-            selectedIndex: _selectedAddressIndex,
-            onPickIndex: (i) => setState(() => _selectedAddressIndex = i),
-          ),
-
-        const SizedBox(height: 12),
-
-        _CameraCard(
-          imagePath: _proofImagePath,
-          onImagePicked: (path) => setState(() => _proofImagePath = path),
-        ),
-
-        const SizedBox(height: 16),
-        SectionTitle('ข้อมูลสินค้า'),
-        const SizedBox(height: 10),
-
-        CustomTextField(
-          hint: 'ชื่อเรียกของงานส่ง',
-          controller: _jobNameCtrl,
-          prefixIcon: const Icon(
-            Icons.local_shipping_rounded,
-            color: Colors.black45,
-          ),
-        ),
-        const SizedBox(height: 14),
-
-        ..._itemCtrls.indexed.map((e) {
-          final i = e.$1;
-          final ctrl = e.$2;
-
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: i == _itemCtrls.length - 1 ? 0 : 10,
+          CustomTextField(
+            hint: 'หมายเลขโทรศัพท์ของผู้รับ',
+            controller: _phoneCtrl,
+            keyboardType: TextInputType.phone,
+            prefixIcon: const Icon(Icons.search, color: Colors.black45),
+            suffixIcon: Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: _busy
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : TextButton(
+                      onPressed: _searchReceiver,
+                      child: const Text('ค้นหา'),
+                    ),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: CustomTextField(
-                    key: ValueKey('item_$i'),
-                    hint: 'ชื่อสินค้า #${i + 1}',
-                    controller: ctrl,
-                    prefixIcon: const Icon(
-                      Icons.inventory_2_rounded,
-                      color: Colors.black45,
+            onFieldSubmitted: (_) => _searchReceiver(),
+          ),
+          const SizedBox(height: 12),
+
+          if ((_results.isNotEmpty) || (_receiverName?.isNotEmpty ?? false))
+            _ReceiverCard(
+              name: _receiverName ?? '—',
+              phone: _receiverPhone ?? _phoneCtrl.text.trim(),
+              avatar: _resolveAvatar(_receiverAvatar),
+              results: _results,
+              selectedIndex: _selectedAddressIndex,
+              onPickIndex: (i) => setState(() => _selectedAddressIndex = i),
+            ),
+
+          const SizedBox(height: 12),
+
+          _CameraCard(
+            imagePath: _proofImagePath,
+            onImagePicked: (path) => setState(() => _proofImagePath = path),
+          ),
+
+          const SizedBox(height: 16),
+          SectionTitle('ข้อมูลสินค้า'),
+          const SizedBox(height: 10),
+
+          CustomTextField(
+            hint: 'ชื่อเรียกของงานส่ง',
+            controller: _jobNameCtrl,
+            prefixIcon: const Icon(
+              Icons.local_shipping_rounded,
+              color: Colors.black45,
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          ..._itemCtrls.indexed.map((e) {
+            final i = e.$1;
+            final ctrl = e.$2;
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: i == _itemCtrls.length - 1 ? 0 : 10,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: CustomTextField(
+                      key: ValueKey('item_$i'),
+                      hint: 'ชื่อสินค้า #${i + 1}',
+                      controller: ctrl,
+                      prefixIcon: const Icon(
+                        Icons.inventory_2_rounded,
+                        color: Colors.black45,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 6),
+                  const SizedBox(width: 6),
 
-                if (i == 0)
-                  _RoundIconBtn(
-                    icon: Icons.add_circle_outline,
-                    tooltip: 'เพิ่มรายการ',
-                    onTap: _addItemField,
-                  )
-                else
-                  _RoundIconBtn(
-                    icon: Icons.remove_circle_outline,
-                    tooltip: 'ลบรายการ',
-                    onTap: _itemCtrls.length > 1
-                        ? () => _removeItemField(i)
-                        : null,
-                  ),
-              ],
-            ),
-          );
-        }),
+                  if (i == 0)
+                    _RoundIconBtn(
+                      icon: Icons.add_circle_outline,
+                      tooltip: 'เพิ่มรายการ',
+                      onTap: _addItemField,
+                    )
+                  else
+                    _RoundIconBtn(
+                      icon: Icons.remove_circle_outline,
+                      tooltip: 'ลบรายการ',
+                      onTap: _itemCtrls.length > 1
+                          ? () => _removeItemField(i)
+                          : null,
+                    ),
+                ],
+              ),
+            );
+          }),
 
-        const SizedBox(height: 16),
+          const SizedBox(height: 16),
 
-        SectionTitle('ระบุโน๊ต'),
-        const SizedBox(height: 6),
-        _NoteField(controller: _noteCtrl),
-        const SizedBox(height: 18),
+          SectionTitle('ระบุโน๊ต'),
+          const SizedBox(height: 6),
+          _NoteField(controller: _noteCtrl),
+          const SizedBox(height: 18),
 
-        IgnorePointer(
-          ignoring: !canConfirm || _busy,
-          child: Opacity(
-            opacity: (!canConfirm || _busy) ? 0.6 : 1,
-            child: GradientButton(
-              text:
-                  'ยืนยันการสร้างสินค้า ${itemCount > 0 ? itemCount : 1} รายการ',
-              onTap: _submitShipment,
+          IgnorePointer(
+            ignoring: !canConfirm || _busy,
+            child: Opacity(
+              opacity: (!canConfirm || _busy) ? 0.6 : 1,
+              child: GradientButton(
+                text:
+                    'ยืนยันการสร้างสินค้า ${itemCount > 0 ? itemCount : 1} รายการ',
+                onTap: _submitShipment,
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 60),
-      ],
+          const SizedBox(height: 60),
+        ],
+      ),
     );
   }
 }
