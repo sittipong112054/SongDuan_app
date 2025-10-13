@@ -13,6 +13,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
 import 'package:songduan_app/pages/rider/rider_home_page.dart';
+import 'package:songduan_app/services/api_helper.dart';
 import 'package:songduan_app/services/session_service.dart';
 
 class RiderDeliveryTrackingPage extends StatefulWidget {
@@ -116,7 +117,12 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
   Future<void> _loadShipmentStatus() async {
     try {
       final uri = Uri.parse('${widget.baseUrl}/shipments/${widget.shipmentId}');
-      final resp = await http.get(uri).timeout(const Duration(seconds: 10));
+      final resp = await http
+          .get(uri, headers: await authHeaders())
+          .timeout(const Duration(seconds: 10));
+
+      handleAuthErrorIfAny(resp);
+
       if (resp.statusCode == 200) {
         final body =
             jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
@@ -145,6 +151,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
 
         String? pickupPath = (data?['pickup_photo_path'] as String?)?.trim();
         String? deliverPath = (data?['deliver_photo_path'] as String?)?.trim();
+
         String toAbs(String? p) {
           if (p == null || p.isEmpty) return '';
           if (p.startsWith('http://') || p.startsWith('https://')) return p;
@@ -169,10 +176,25 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
           _pickedUp = false;
           _navToDrop = false;
         }
-        setState(() {});
-        _updateRoute();
+
+        if (mounted) {
+          setState(() {});
+          _updateRoute();
+        }
+      } else {
+        // ไม่ใช่ 200 → แสดง error ที่อ่านออก (ถ้ามี)
+        final err = jsonDecode(utf8.decode(resp.bodyBytes));
+        final msg =
+            err is Map &&
+                err['error'] is Map &&
+                err['error']['message'] is String
+            ? err['error']['message'] as String
+            : 'โหลดงานไม่สำเร็จ (HTTP ${resp.statusCode})';
+        Get.snackbar('ผิดพลาด', msg, snackPosition: SnackPosition.BOTTOM);
       }
-    } catch (_) {}
+    } catch (_) {
+      // เงียบไว้ตามเดิม หรือจะแจ้งเตือนก็ได้
+    }
   }
 
   Future<void> _initLocation() async {
@@ -298,14 +320,21 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     };
 
     try {
-      await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(payload),
-      );
-      _lastSent = _me;
-      _lastSentAt = now;
-    } catch (_) {}
+      final resp = await http
+          .post(uri, headers: await authHeaders(), body: jsonEncode(payload))
+          .timeout(const Duration(seconds: 10));
+
+      handleAuthErrorIfAny(resp);
+
+      if (resp.statusCode >= 200 && resp.statusCode < 300) {
+        _lastSent = _me;
+        _lastSentAt = now;
+      } else {
+        debugPrint('ส่ง location ไม่สำเร็จ: ${resp.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('เกิดข้อผิดพลาดขณะอัปเดต location: $e');
+    }
   }
 
   Future<void> _updateRoute() async {
@@ -394,47 +423,65 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
         : '/shipments/${widget.shipmentId}/deliver-photo';
     final uri = Uri.parse('${widget.baseUrl}$path');
 
-    final req = http.MultipartRequest('POST', uri);
-    req.files.add(await http.MultipartFile.fromPath('photo', file.path));
+    try {
+      final req = http.MultipartRequest('POST', uri);
+      req.files.add(await http.MultipartFile.fromPath('photo', file.path));
 
-    final streamed = await req.send();
-    final resp = await http.Response.fromStream(streamed);
+      final headers = await authHeaders();
+      headers.remove('Content-Type');
+      req.headers.addAll(headers);
 
-    if (resp.statusCode == 201) {
-      final body = _safeJson(resp);
-      final fp = (body['data']?['file_path'] ?? body['file_path'] ?? '')
-          ?.toString();
-      if (fp != null && fp.isNotEmpty) {
-        String toAbs(String p) {
-          if (p.startsWith('http://') || p.startsWith('https://')) return p;
-          final base = widget.baseUrl.endsWith('/')
-              ? widget.baseUrl.substring(0, widget.baseUrl.length - 1)
-              : widget.baseUrl;
-          return '$base$p';
+      final streamed = await req.send().timeout(const Duration(seconds: 20));
+      final resp = await http.Response.fromStream(streamed);
+
+      handleAuthErrorIfAny(resp);
+
+      if (resp.statusCode == 201) {
+        final body = _safeJson(resp);
+        final fp = (body['data']?['file_path'] ?? body['file_path'] ?? '')
+            ?.toString();
+
+        if (fp != null && fp.isNotEmpty) {
+          String toAbs(String p) {
+            if (p.startsWith('http://') || p.startsWith('https://')) return p;
+            final base = widget.baseUrl.endsWith('/')
+                ? widget.baseUrl.substring(0, widget.baseUrl.length - 1)
+                : widget.baseUrl;
+            return '$base$p';
+          }
+
+          if (mounted) {
+            setState(() {
+              if (isPickup) {
+                _pickupPhotoUrl = toAbs(fp);
+              } else {
+                _deliverPhotoUrl = toAbs(fp);
+              }
+            });
+          }
         }
 
-        setState(() {
-          if (isPickup) {
-            _pickupPhotoUrl = toAbs(fp);
-          } else {
-            _deliverPhotoUrl = toAbs(fp);
-          }
-        });
+        Get.snackbar(
+          'อัปโหลดสำเร็จ',
+          isPickup ? 'บันทึกรูปตอนรับแล้ว' : 'บันทึกรูปตอนส่งแล้ว',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return true;
+      } else {
+        final b = _safeJson(resp);
+        final msg = (b['error']?['message'] ?? 'HTTP ${resp.statusCode}')
+            .toString();
+        Get.snackbar(
+          'อัปโหลดไม่สำเร็จ',
+          msg,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return false;
       }
-
-      Get.snackbar(
-        'อัปโหลดสำเร็จ',
-        isPickup ? 'บันทึกรูปตอนรับแล้ว' : 'บันทึกรูปตอนส่งแล้ว',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return true;
-    } else {
-      final b = _safeJson(resp);
-      final msg = (b['error']?['message'] ?? 'HTTP ${resp.statusCode}')
-          .toString();
+    } catch (e) {
       Get.snackbar(
         'อัปโหลดไม่สำเร็จ',
-        msg,
+        '$e',
         snackPosition: SnackPosition.BOTTOM,
       );
       return false;
@@ -445,27 +492,37 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     final uri = Uri.parse(
       '${widget.baseUrl}/shipments/${widget.shipmentId}/pickup',
     );
-    final resp = await http
-        .post(uri, headers: {'Content-Type': 'application/json'})
-        .timeout(const Duration(seconds: 12));
 
-    if (resp.statusCode == 200 || resp.statusCode == 201) {
-      setState(() {
-        _pickedUp = true;
-        _navToDrop = true;
-      });
-      _updateRoute();
-      Get.snackbar(
-        'อัปเดตแล้ว',
-        'เริ่มนำส่งสินค้า',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return true;
-    } else {
-      final b = _safeJson(resp);
-      final msg = (b['error']?['message'] ?? 'HTTP ${resp.statusCode}')
-          .toString();
-      Get.snackbar('ผิดพลาด', msg, snackPosition: SnackPosition.BOTTOM);
+    try {
+      final resp = await http
+          .post(uri, headers: await authHeaders())
+          .timeout(const Duration(seconds: 12));
+
+      handleAuthErrorIfAny(resp);
+
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        if (mounted) {
+          setState(() {
+            _pickedUp = true;
+            _navToDrop = true;
+          });
+          _updateRoute();
+        }
+        Get.snackbar(
+          'อัปเดตแล้ว',
+          'เริ่มนำส่งสินค้า',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return true;
+      } else {
+        final b = _safeJson(resp);
+        final msg = (b['error']?['message'] ?? 'HTTP ${resp.statusCode}')
+            .toString();
+        Get.snackbar('ผิดพลาด', msg, snackPosition: SnackPosition.BOTTOM);
+        return false;
+      }
+    } catch (e) {
+      Get.snackbar('ผิดพลาด', '$e', snackPosition: SnackPosition.BOTTOM);
       return false;
     }
   }
@@ -474,23 +531,30 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     final uri = Uri.parse(
       '${widget.baseUrl}/shipments/${widget.shipmentId}/deliver',
     );
-    final resp = await http
-        .post(uri, headers: {'Content-Type': 'application/json'})
-        .timeout(const Duration(seconds: 12));
 
-    if (resp.statusCode == 200 || resp.statusCode == 201) {
-      try {
-        await _posSub?.cancel();
-      } catch (_) {}
-      _tick?.cancel();
+    try {
+      final resp = await http
+          .post(uri, headers: await authHeaders())
+          .timeout(const Duration(seconds: 12));
 
-      Get.offAll(() => const RiderHomePage());
-      return true;
-    } else {
-      final b = _safeJson(resp);
-      final msg = (b['error']?['message'] ?? 'HTTP ${resp.statusCode}')
-          .toString();
-      Get.snackbar('ผิดพลาด', msg, snackPosition: SnackPosition.BOTTOM);
+      handleAuthErrorIfAny(resp);
+
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        try {
+          await _posSub?.cancel();
+        } catch (_) {}
+        _tick?.cancel();
+        Get.offAll(() => const RiderHomePage());
+        return true;
+      } else {
+        final b = _safeJson(resp);
+        final msg = (b['error']?['message'] ?? 'HTTP ${resp.statusCode}')
+            .toString();
+        Get.snackbar('ผิดพลาด', msg, snackPosition: SnackPosition.BOTTOM);
+        return false;
+      }
+    } catch (e) {
+      Get.snackbar('ผิดพลาด', '$e', snackPosition: SnackPosition.BOTTOM);
       return false;
     }
   }

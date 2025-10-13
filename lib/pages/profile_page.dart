@@ -8,6 +8,7 @@ import 'package:songduan_app/pages/login_page.dart';
 import 'package:songduan_app/pages/member/add_location_page.dart';
 import 'package:songduan_app/services/session_service.dart';
 import 'package:songduan_app/widgets/gradient_button.dart';
+import 'package:songduan_app/services/api_helper.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -26,6 +27,7 @@ class _ProfilePageState extends State<ProfilePage> {
   late final Map<String, dynamic> user;
   late final String userId;
   late final String name;
+  late final String username; // <-- เพิ่ม
   late final String roleLabel;
   late final bool isRider;
   late final String phone;
@@ -48,6 +50,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     userId = (user['id'] ?? user['user_id'] ?? '').toString();
     name = (user['name'] ?? user['username'] ?? 'ผู้ใช้').toString();
+    username = (user['username'] ?? 'ไม่ระบุ').toString();
 
     final role = (user['role'] ?? '').toString().toUpperCase();
     roleLabel = switch (role) {
@@ -95,13 +98,8 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final uri = Uri.parse('$_baseUrl/addresses/$userId');
 
-      final res = await http.get(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          // 'Authorization': 'Bearer $token',
-        },
-      );
+      final res = await http.get(uri, headers: await authHeaders());
+      handleAuthErrorIfAny(res);
 
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final data = jsonDecode(res.body);
@@ -153,13 +151,8 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final uri = Uri.parse('$_baseUrl/riders/vehicles/$userId');
 
-      final res = await http.get(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          // 'Authorization': 'Bearer $token',
-        },
-      );
+      final res = await http.get(uri, headers: await authHeaders());
+      handleAuthErrorIfAny(res);
 
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final data = jsonDecode(res.body);
@@ -300,6 +293,15 @@ class _ProfilePageState extends State<ProfilePage> {
                             color: _textDark,
                           ),
                         ),
+                        // <-- แสดง username ใต้ชื่อ
+                        Text(
+                          '@$username',
+                          style: GoogleFonts.notoSansThai(
+                            fontSize: 13,
+                            color: Colors.black.withOpacity(0.55),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                         Text(
                           roleLabel,
                           style: GoogleFonts.notoSansThai(
@@ -326,6 +328,8 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(height: 10),
               _ReadOnlyField(hint: 'Name', value: name),
+              const SizedBox(height: 10),
+              _ReadOnlyField(hint: 'Username', value: username), // <-- เพิ่ม
               const SizedBox(height: 10),
               _ReadOnlyField(hint: 'Phone Number', value: phone),
 
@@ -493,12 +497,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> logout() async {
     try {
-      // ล้างข้อมูลผู้ใช้ใน storage
-      // final prefs = await SharedPreferences.getInstance();
-      // await prefs.clear();
-
       Get.find<SessionService>().clear();
-
       Get.offAll(() => const LoginPages(), transition: Transition.fadeIn);
 
       Get.snackbar(
@@ -525,22 +524,7 @@ class _VehiclePictureBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (imageProvider == null) {
-      return Container(
-        height: 160,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: Colors.grey.shade200,
-        ),
-        child: Text(
-          'Picture of vehicle',
-          style: GoogleFonts.notoSansThai(
-            fontSize: 14,
-            color: Colors.black.withOpacity(0.55),
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      );
+      return _buildPlaceholder(context, 'Picture of vehicle');
     }
 
     return ClipRRect(
@@ -550,6 +534,28 @@ class _VehiclePictureBox extends StatelessWidget {
         height: 200,
         width: double.infinity,
         fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildPlaceholder(context, 'ไม่สามารถโหลดรูปได้');
+        },
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder(BuildContext context, String message) {
+    return Container(
+      height: 160,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.grey.shade200,
+      ),
+      child: Text(
+        message,
+        style: GoogleFonts.notoSansThai(
+          fontSize: 14,
+          color: Colors.black.withOpacity(0.55),
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

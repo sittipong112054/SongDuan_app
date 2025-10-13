@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mime/mime.dart';
+import 'package:songduan_app/services/api_helper.dart';
 import 'package:songduan_app/services/session_service.dart';
 import 'package:path/path.dart' as p;
 
@@ -101,8 +102,10 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
     try {
       final uri = Uri.parse('${widget.baseUrl}/addresses/$senderId');
       final resp = await http
-          .get(uri, headers: {'Content-Type': 'application/json'})
+          .get(uri, headers: await authHeaders())
           .timeout(const Duration(seconds: 12));
+
+      handleAuthErrorIfAny(resp);
       final body = jsonDecode(utf8.decode(resp.bodyBytes));
 
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
@@ -171,8 +174,10 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
       );
 
       final resp = await http
-          .get(uri, headers: {'Content-Type': 'application/json'})
+          .get(uri, headers: await authHeaders())
           .timeout(const Duration(seconds: 15));
+
+      handleAuthErrorIfAny(resp);
 
       final body = jsonDecode(utf8.decode(resp.bodyBytes));
 
@@ -281,7 +286,11 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
           ),
         );
 
-        final sent = await req.send();
+        final headers = await authHeaders();
+        headers.remove('Content-Type');
+        req.headers.addAll(headers);
+
+        final sent = await req.send().timeout(const Duration(seconds: 20));
         resp = await http.Response.fromStream(sent);
       } else {
         final payload = {
@@ -294,12 +303,12 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
           'note': _noteCtrl.text.trim(),
         };
 
-        resp = await http.post(
-          uri,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode(payload),
-        );
+        resp = await http
+            .post(uri, headers: await authHeaders(), body: jsonEncode(payload))
+            .timeout(const Duration(seconds: 20));
       }
+
+      handleAuthErrorIfAny(resp);
 
       final body = jsonDecode(utf8.decode(resp.bodyBytes));
       if (resp.statusCode == 201) {

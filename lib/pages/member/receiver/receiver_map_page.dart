@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:songduan_app/services/api_helper.dart';
 
 import 'package:songduan_app/services/session_service.dart';
 import 'package:songduan_app/widgets/delivery_status_card.dart';
@@ -81,7 +82,10 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
     final uri = Uri.parse(
       '${widget.baseUrl}/shipments?receiver_id=$me&pageSize=100',
     );
-    final resp = await http.get(uri).timeout(const Duration(seconds: 15));
+    final resp = await http
+        .get(uri, headers: await authHeaders())
+        .timeout(const Duration(seconds: 15));
+    handleAuthErrorIfAny(resp);
     if (resp.statusCode != 200) {
       throw Exception('โหลดข้อมูลงานไม่สำเร็จ: HTTP ${resp.statusCode}');
     }
@@ -176,7 +180,10 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
     final uri = Uri.parse(
       '${widget.baseUrl}/rider_locations/$riderId/location',
     );
-    final resp = await http.get(uri).timeout(const Duration(seconds: 10));
+    final resp = await http
+        .get(uri, headers: await authHeaders())
+        .timeout(const Duration(seconds: 10));
+    handleAuthErrorIfAny(resp);
     if (resp.statusCode != 200) return;
     final j = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
     final d = j['data'] as Map<String, dynamic>?;

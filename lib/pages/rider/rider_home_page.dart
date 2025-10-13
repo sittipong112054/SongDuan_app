@@ -10,6 +10,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:songduan_app/config/config.dart';
 import 'package:songduan_app/pages/profile_page.dart';
 import 'package:songduan_app/pages/rider/rider_delivery_tracking_page.dart';
+import 'package:songduan_app/services/api_helper.dart';
 import 'package:songduan_app/services/session_service.dart';
 import 'package:songduan_app/widgets/order_card.dart';
 import 'package:songduan_app/widgets/order_detail_card.dart';
@@ -52,6 +53,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
       'id': session.currentUserId,
       'role': session.role,
       'name': session.name,
+      'username': session.username,
       'phone': session.phone,
       'avatar_path': session.avatarPath,
     };
@@ -96,8 +98,9 @@ class _RiderHomePageState extends State<RiderHomePage> {
     try {
       final uri = Uri.parse('$_baseUrl/riders/$riderId/active-assignment');
       final resp = await http
-          .get(uri, headers: {'Content-Type': 'application/json'})
+          .get(uri, headers: await authHeaders())
           .timeout(const Duration(seconds: 10));
+      handleAuthErrorIfAny(resp);
 
       if (resp.statusCode != 200) {
         return;
@@ -113,8 +116,9 @@ class _RiderHomePageState extends State<RiderHomePage> {
 
       final dUri = Uri.parse('$_baseUrl/shipments/$sid');
       final dResp = await http
-          .get(dUri, headers: {'Accept': 'application/json'})
+          .get(dUri, headers: await authHeaders())
           .timeout(const Duration(seconds: 10));
+      handleAuthErrorIfAny(dResp);
       if (dResp.statusCode != 200) return;
 
       final detail =
@@ -161,8 +165,9 @@ class _RiderHomePageState extends State<RiderHomePage> {
       );
 
       final resp = await http
-          .get(uri, headers: {'Content-Type': 'application/json'})
+          .get(uri, headers: await authHeaders())
           .timeout(const Duration(seconds: 15));
+      handleAuthErrorIfAny(resp);
 
       final body = jsonDecode(utf8.decode(resp.bodyBytes));
 
@@ -265,10 +270,11 @@ class _RiderHomePageState extends State<RiderHomePage> {
     final resp = await http
         .post(
           uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: await authHeaders(),
           body: jsonEncode({'rider_id': riderId}),
         )
         .timeout(const Duration(seconds: 15));
+    handleAuthErrorIfAny(resp);
     if (resp.statusCode != 200 && resp.statusCode != 201) {
       final b = _safeJson(resp);
       Get.snackbar(
@@ -280,7 +286,8 @@ class _RiderHomePageState extends State<RiderHomePage> {
     }
 
     final dUri = Uri.parse('$_baseUrl/shipments/$shipmentId');
-    final dResp = await http.get(dUri);
+    final dResp = await http.get(dUri, headers: await authHeaders());
+    handleAuthErrorIfAny(dResp);
     if (dResp.statusCode != 200) {
       Get.snackbar(
         'โหลดรายละเอียดไม่สำเร็จ',

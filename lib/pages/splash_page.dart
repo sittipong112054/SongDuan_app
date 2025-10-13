@@ -3,6 +3,9 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:songduan_app/pages/welcome_page.dart';
+import 'package:songduan_app/pages/member/member_home_page.dart';
+import 'package:songduan_app/pages/rider/rider_home_page.dart';
+import 'package:songduan_app/services/session_service.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -18,13 +21,49 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 3), () {
-      Get.off(
-        () => const WelcomePage(),
-        transition: Transition.circularReveal,
-        duration: const Duration(milliseconds: 1000),
-      );
-    });
+    Future.delayed(const Duration(seconds: 2), _decideRoute);
+  }
+
+  Future<void> _decideRoute() async {
+    final ss = Get.find<SessionService>();
+
+    if (ss.isLoggedIn) {
+      final userData = {
+        'id': ss.currentUserId ?? 0,
+        'role': (ss.role ?? '').toUpperCase(),
+        'name': ss.name ?? '',
+        'username': ss.username ?? '',
+        'phone': ss.phone ?? '',
+        'avatar_path': ss.avatarPath ?? '',
+      };
+
+      switch ((ss.role ?? '').toUpperCase()) {
+        case 'RIDER':
+          Get.off(
+            () => const RiderHomePage(),
+            arguments: userData,
+            transition: Transition.circularReveal,
+            duration: const Duration(milliseconds: 1000),
+          );
+          return;
+        case 'MEMBER':
+          Get.off(
+            () => const MemberHomePage(),
+            arguments: userData,
+            transition: Transition.circularReveal,
+            duration: const Duration(milliseconds: 1000),
+          );
+          return;
+        default:
+          break;
+      }
+    }
+
+    Get.off(
+      () => const WelcomePage(),
+      transition: Transition.circularReveal,
+      duration: const Duration(milliseconds: 1000),
+    );
   }
 
   @override
@@ -37,7 +76,7 @@ class _SplashPageState extends State<SplashPage> {
           children: [
             Container(
               width: 180,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
               ),
@@ -66,7 +105,6 @@ class _SplashPageState extends State<SplashPage> {
                   textAlign: TextAlign.center,
                   style: GoogleFonts.staatliches(
                     fontSize: 42,
-                    fontWeight: FontWeight.normal,
                     letterSpacing: 1.2,
                     color: Colors.white,
                     shadows: [
@@ -83,7 +121,7 @@ class _SplashPageState extends State<SplashPage> {
             Text(
               'เรียลไทม์ ส่งไว ถึงชัวร์',
               style: GoogleFonts.notoSansThai(
-                color: Color(0xFF8C8C8C).withOpacity(0.65),
+                color: const Color(0xFF8C8C8C).withOpacity(0.65),
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
               ),

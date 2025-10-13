@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:songduan_app/config/config.dart';
 import 'package:songduan_app/pages/member/map_page.dart';
+import 'package:songduan_app/services/api_helper.dart';
 import 'package:songduan_app/widgets/gradient_button.dart';
 import 'package:songduan_app/widgets/custom_text_field.dart';
 import 'package:songduan_app/widgets/section_title.dart';
@@ -314,33 +315,27 @@ class _AddLocationPageState extends State<AddLocationPage> {
 
     try {
       http.Response resp;
+
+      final payload = {
+        'label': label,
+        'address_text': addr,
+        'lat': lat,
+        'lng': lng,
+      };
+
       if (addressId == null) {
         final uri = Uri.parse('$_baseUrl/addresses/$userId');
-        resp = await http.post(
-          uri,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'label': label,
-            'address_text': addr,
-            'lat': lat,
-            'lng': lng,
-            // 'is_default': _isDefault,
-          }),
-        );
+        resp = await http
+            .post(uri, headers: await authHeaders(), body: jsonEncode(payload))
+            .timeout(const Duration(seconds: 15));
       } else {
         final uri = Uri.parse('$_baseUrl/addresses/$addressId');
-        resp = await http.patch(
-          uri,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'label': label,
-            'address_text': addr,
-            'lat': lat,
-            'lng': lng,
-            // 'is_default': _isDefault,
-          }),
-        );
+        resp = await http
+            .patch(uri, headers: await authHeaders(), body: jsonEncode(payload))
+            .timeout(const Duration(seconds: 15));
       }
+
+      handleAuthErrorIfAny(resp);
 
       final json = jsonDecode(utf8.decode(resp.bodyBytes));
       if (resp.statusCode == 201 || resp.statusCode == 200) {
@@ -375,7 +370,12 @@ class _AddLocationPageState extends State<AddLocationPage> {
 
     try {
       final uri = Uri.parse('$_baseUrl/addresses/$addressId');
-      final resp = await http.delete(uri);
+      final resp = await http
+          .delete(uri, headers: await authHeaders())
+          .timeout(const Duration(seconds: 15));
+
+      handleAuthErrorIfAny(resp);
+
       if (resp.statusCode == 204) {
         Get.back(result: {'deleted': true, 'id': addressId});
         Get.snackbar(

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
+import 'package:songduan_app/services/api_helper.dart';
 
 import 'package:songduan_app/services/session_service.dart';
 import 'package:songduan_app/widgets/order_card.dart';
@@ -50,8 +51,9 @@ class _SenderListPageState extends State<SenderListPage> {
       ).replace(queryParameters: {'sender_id': '$senderId'});
 
       final resp = await http
-          .get(uri, headers: {'Content-Type': 'application/json'})
+          .get(uri, headers: await authHeaders())
           .timeout(const Duration(seconds: 15));
+      handleAuthErrorIfAny(resp);
 
       final body = jsonDecode(utf8.decode(resp.bodyBytes));
 
