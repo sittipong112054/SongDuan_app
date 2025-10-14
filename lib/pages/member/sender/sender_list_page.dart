@@ -326,7 +326,7 @@ class _SenderListPageState extends State<SenderListPage> {
                 );
               }),
             ],
-            const SizedBox(height: 40),
+            const SizedBox(height: 70),
           ],
         ),
       ),

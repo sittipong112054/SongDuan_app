@@ -85,6 +85,48 @@ class Glass extends StatelessWidget {
   }
 }
 
+class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const GlassAppBar({super.key, required this.title});
+  final String title;
+
+  @override
+  Size get preferredSize => const Size.fromHeight(56);
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      elevation: 0,
+      backgroundColor: Colors.transparent,
+      automaticallyImplyLeading: false,
+      centerTitle: true,
+      title: Glass(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        borderRadius: BorderRadius.circular(14),
+        child: Text(
+          title,
+          style: GoogleFonts.notoSansThai(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            color: Colors.black.withValues(alpha: 0.95),
+          ),
+        ),
+      ),
+      flexibleSpace: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Colors.white.withValues(alpha: 0.08),
+              Colors.white.withValues(alpha: 0.00),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class GlassCard extends StatelessWidget {
   const GlassCard({super.key, required this.child, this.padding, this.radius});
   final Widget child;
@@ -243,6 +285,12 @@ class _GlassButtonState extends State<GlassButton> {
       ),
     );
   }
+}
+
+double appBarTotalHeight(BuildContext context, {PreferredSizeWidget? appBar}) {
+  final topInset = MediaQuery.of(context).padding.top;
+  final toolbar = appBar?.preferredSize.height ?? kToolbarHeight;
+  return topInset + toolbar;
 }
 
 class RiderDeliveryTrackingPage extends StatefulWidget {
@@ -1020,7 +1068,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                         Positioned(
                           left: 12,
                           right: 12,
-                          top: kToolbarHeight + 36,
+                          top: appBarTotalHeight(context) + 12,
                           child: Column(
                             children: [
                               GlassCard(

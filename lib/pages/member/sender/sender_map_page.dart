@@ -398,7 +398,7 @@ class _SenderMapPageState extends State<SenderMapPage> {
                 );
               }),
             ],
-            const SizedBox(height: 40),
+            const SizedBox(height: 70),
           ],
         ),
       ),

@@ -398,7 +398,7 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
                 );
               }),
             ],
-            const SizedBox(height: 40),
+            const SizedBox(height: 70),
           ],
         ),
       ),

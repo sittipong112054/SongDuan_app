@@ -22,6 +22,7 @@ class MyApp extends StatelessWidget {
     return GetMaterialApp(
       title: 'SONGDUAN EXPRESS',
       theme: ThemeData(
+        scaffoldBackgroundColor: Colors.white,
         textTheme: GoogleFonts.notoSansThaiTextTheme(),
         colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFFFF9C00)),
       ),
