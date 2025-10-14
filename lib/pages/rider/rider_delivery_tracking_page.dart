@@ -933,7 +933,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
       },
       child: Scaffold(
         extendBodyBehindAppBar: true,
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.white,
         appBar: AppBar(
           automaticallyImplyLeading: false,
           centerTitle: true,
@@ -962,7 +962,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                   ? Center(child: Text(_error!))
                   : Stack(
                       children: [
-                        // MAP
                         FlutterMap(
                           mapController: _map,
                           options: MapOptions(
@@ -1064,7 +1063,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                           ],
                         ),
 
-                        // TOP PANELS: distance/eta + job card
                         Positioned(
                           left: 12,
                           right: 12,
@@ -1136,7 +1134,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                           ),
                         ),
 
-                        // IMAGE PREVIEW ROW
                         Positioned(
                           left: 12,
                           right: 12,
@@ -1172,7 +1169,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                           ),
                         ),
 
-                        // BOTTOM ACTION BUTTON (glass)
                         Positioned(
                           left: 12,
                           right: 12,
@@ -1182,12 +1178,8 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                             child: GlassButton(
                               primary: true,
                               primaryColor: isPickupPhase
-                                  ? const Color(
-                                      0xFF007AFF,
-                                    ) // ฟ้าน้ำทะเลตอน "ถ่ายรูป & รับพัสดุ"
-                                  : const Color(
-                                      0xFF34C759,
-                                    ), // เขียวสดตอน "ถ่ายรูป & ส่งสำเร็จ"
+                                  ? const Color(0xFF007AFF)
+                                  : const Color(0xFF34C759),
                               enabled: canDoNow && !_actionBusy,
                               busy: _actionBusy,
                               onTap: _onAction,
@@ -1205,7 +1197,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
   }
 }
 
-/// Preview (wrapped by GlassCard from parent)
 class _PreviewBox extends StatefulWidget {
   final File? file;
   final String? url;
@@ -1222,7 +1213,6 @@ class _PreviewBoxState extends State<_PreviewBox> {
 
   @override
   Widget build(BuildContext context) {
-    // decoration/ขอบ สีพื้น — ตัดออก ให้สไตล์มาจาก GlassCard ชั้นนอก
     if (widget.file != null) {
       return Container(
         height: 86,
@@ -1331,7 +1321,6 @@ class _PreviewBoxState extends State<_PreviewBox> {
   }
 }
 
-/// Glass alert (คงของเดิมไว้)
 Future<void> showGlassAlert({
   required String title,
   required String message,
@@ -1457,7 +1446,6 @@ class _GlassButton extends StatelessWidget {
   }
 }
 
-/// Job card (ปรับให้กลืนกับ GlassCard ภายนอก — ไม่มีพื้นหลัง/เงาทึบในตัว)
 class _JobMiniCard extends StatelessWidget {
   const _JobMiniCard({
     required this.title,

@@ -1,5 +1,4 @@
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -74,6 +73,16 @@ class _MemberHomePageState extends State<MemberHomePage> {
       'MEMBER' => 'Member',
       _ => 'User',
     };
+
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+    );
   }
 
   Future<void> _loadConfig() async {
@@ -93,6 +102,14 @@ class _MemberHomePageState extends State<MemberHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final overlay = const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
+      systemNavigationBarColor: Colors.white,
+      systemNavigationBarIconBrightness: Brightness.dark,
+    );
+
     if (_loadingCfg) {
       return const Scaffold(
         body: SafeArea(child: Center(child: CircularProgressIndicator())),
@@ -112,109 +129,114 @@ class _MemberHomePageState extends State<MemberHomePage> {
 
     final tabs = _isSender ? _senderTabs : _receiverTabs;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Stack(
-        children: [
-          SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-                  child: ProfileHeader(
-                    name: _name,
-                    role: _roleLabel,
-                    image: _user['avatar_path']?.toString().isNotEmpty == true
-                        ? _user['avatar_path'] as String
-                        : 'assets/images/default_avatar.png',
-                    baseUrl: _baseUrl,
-                    onMorePressed: () =>
-                        Get.to(() => const ProfilePage(), arguments: _user),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: overlay,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: Stack(
+          children: [
+            SafeArea(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+                    child: ProfileHeader(
+                      name: _name,
+                      role: _roleLabel,
+                      image: _user['avatar_path']?.toString().isNotEmpty == true
+                          ? _user['avatar_path'] as String
+                          : 'assets/images/default_avatar.png',
+                      baseUrl: _baseUrl,
+                      onMorePressed: () =>
+                          Get.to(() => const ProfilePage(), arguments: _user),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TabButton(
-                          text: "ผู้ส่ง",
-                          selected: _isSender,
-                          onTap: () => setState(() {
-                            _isSender = true;
-                            _senderIndex = _senderIndex.clamp(
-                              0,
-                              _senderTabs.length - 1,
-                            );
-                          }),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TabButton(
+                            text: "ผู้ส่ง",
+                            selected: _isSender,
+                            onTap: () => setState(() {
+                              _isSender = true;
+                              _senderIndex = _senderIndex.clamp(
+                                0,
+                                _senderTabs.length - 1,
+                              );
+                            }),
+                          ),
                         ),
-                      ),
-                      Expanded(
-                        child: TabButton(
-                          text: "ผู้รับ",
-                          selected: !_isSender,
-                          onTap: () => setState(() {
-                            _isSender = false;
-                            _receiverIndex = _receiverIndex.clamp(
-                              0,
-                              _receiverTabs.length - 1,
-                            );
-                          }),
+                        Expanded(
+                          child: TabButton(
+                            text: "ผู้รับ",
+                            selected: !_isSender,
+                            onTap: () => setState(() {
+                              _isSender = false;
+                              _receiverIndex = _receiverIndex.clamp(
+                                0,
+                                _receiverTabs.length - 1,
+                              );
+                            }),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: IndexedStack(
-                    index: _currentIndex,
-                    children: _isSender
-                        ? [
-                            SenderCreatePage(
-                              key: UniqueKey(),
-                              baseUrl: _baseUrl!,
-                            ),
-                            SenderMapPage(key: UniqueKey(), baseUrl: _baseUrl!),
-                            SenderListPage(
-                              key: UniqueKey(),
-                              baseUrl: _baseUrl!,
-                            ),
-                          ]
-                        : [
-                            ReceiverMapPage(
-                              key: UniqueKey(),
-                              baseUrl: _baseUrl!,
-                            ),
-                            ReceiverListPage(
-                              key: UniqueKey(),
-                              baseUrl: _baseUrl!,
-                            ),
-                          ],
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: IndexedStack(
+                      index: _currentIndex,
+                      children: _isSender
+                          ? [
+                              SenderCreatePage(
+                                key: UniqueKey(),
+                                baseUrl: _baseUrl!,
+                              ),
+                              SenderMapPage(
+                                key: UniqueKey(),
+                                baseUrl: _baseUrl!,
+                              ),
+                              SenderListPage(
+                                key: UniqueKey(),
+                                baseUrl: _baseUrl!,
+                              ),
+                            ]
+                          : [
+                              ReceiverMapPage(
+                                key: UniqueKey(),
+                                baseUrl: _baseUrl!,
+                              ),
+                              ReceiverListPage(
+                                key: UniqueKey(),
+                                baseUrl: _baseUrl!,
+                              ),
+                            ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 10,
-            child: Center(
-              child: Container(
-                color: Colors.transparent,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: CustomGradientNavBar(
-                  items: tabs,
-                  currentIndex: _currentIndex.clamp(0, tabs.length - 1),
-                  onTap: (idx) => setState(() => _currentIndex = idx),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 10,
+              child: Center(
+                child: Container(
+                  color: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: CustomGradientNavBar(
+                    items: tabs,
+                    currentIndex: _currentIndex.clamp(0, tabs.length - 1),
+                    onTap: (idx) => setState(() => _currentIndex = idx),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -265,12 +287,10 @@ class CustomGradientNavBar extends StatelessWidget {
                       ],
               ),
               borderRadius: BorderRadius.circular(18),
-
               border: Border.all(
                 color: Colors.white.withValues(alpha: isDark ? 0.28 : 0.38),
                 width: 1.2,
               ),
-
               boxShadow: [
                 BoxShadow(
                   color: Colors.blueGrey.withValues(
@@ -282,22 +302,17 @@ class CustomGradientNavBar extends StatelessWidget {
                 ),
               ],
             ),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Row(
-                  children: List.generate(items.length, (i) {
-                    final selected = i == currentIndex;
-                    return Expanded(
-                      child: _NavButton(
-                        item: items[i],
-                        selected: selected,
-                        onTap: () => onTap(i),
-                      ),
-                    );
-                  }),
-                ),
-              ],
+            child: Row(
+              children: List.generate(items.length, (i) {
+                final selected = i == currentIndex;
+                return Expanded(
+                  child: _NavButton(
+                    item: items[i],
+                    selected: selected,
+                    onTap: () => onTap(i),
+                  ),
+                );
+              }),
             ),
           ),
         ),
