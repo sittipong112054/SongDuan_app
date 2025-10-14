@@ -554,7 +554,7 @@ class _AddressPickList extends StatelessWidget {
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Color(0xFFF0F2F5),
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
@@ -708,7 +708,7 @@ class _ReceiverCard extends StatelessWidget {
   }
 
   BoxDecoration _cardDecor() => BoxDecoration(
-    color: Colors.white,
+    color: Color(0xFFF0F2F5),
     borderRadius: BorderRadius.circular(18),
     boxShadow: [
       BoxShadow(
@@ -774,7 +774,7 @@ class _CameraCardState extends State<_CameraCard> {
     return GestureDetector(
       onTap: _showPickOptions,
       child: Container(
-        height: 160,
+        height: 200,
         decoration: BoxDecoration(
           color: const Color(0xFFF0F2F5),
           borderRadius: BorderRadius.circular(18),
@@ -819,45 +819,6 @@ class _CameraCardState extends State<_CameraCard> {
     );
   }
 }
-
-// class _AddItemButton extends StatelessWidget {
-//   final VoidCallback onTap;
-//   const _AddItemButton({required this.onTap});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Align(
-//       alignment: Alignment.center,
-//       child: Material(
-//         color: const Color(0xFFEDEEF1),
-//         borderRadius: BorderRadius.circular(12),
-//         elevation: 2,
-//         child: InkWell(
-//           borderRadius: BorderRadius.circular(12),
-//           onTap: onTap,
-//           child: Padding(
-//             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-//             child: Row(
-//               mainAxisSize: MainAxisSize.min,
-//               children: [
-//                 Text(
-//                   'เพิ่มสินค้าที่จะส่ง',
-//                   style: GoogleFonts.notoSansThai(
-//                     fontSize: 14.5,
-//                     fontWeight: FontWeight.w800,
-//                     color: Colors.black.withValues(alpha:0.7),
-//                   ),
-//                 ),
-//                 const SizedBox(width: 8),
-//                 const Icon(Icons.add, color: Colors.black54),
-//               ],
-//             ),
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-// }
 
 class _NoteField extends StatelessWidget {
   final TextEditingController controller;

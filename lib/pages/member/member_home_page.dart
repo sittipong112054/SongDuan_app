@@ -418,7 +418,7 @@ class _NavButton extends StatelessWidget {
                           style: GoogleFonts.notoSansThai(
                             fontWeight: FontWeight.w900,
                             height: 1.0,
-                            fontSize: 15 * ts,
+                            fontSize: 14 * ts,
                             color: onColor,
                           ),
                         )

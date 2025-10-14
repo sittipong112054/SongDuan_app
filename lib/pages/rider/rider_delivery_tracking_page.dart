@@ -970,7 +970,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                                     width: 52,
                                     height: 52,
                                     child: const Icon(
-                                      Icons.pedal_bike_rounded,
+                                      Icons.motorcycle_rounded,
                                       color: Colors.red,
                                       size: 38,
                                     ),
