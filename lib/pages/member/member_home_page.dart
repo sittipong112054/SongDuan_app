@@ -343,94 +343,92 @@ class _NavButton extends StatelessWidget {
     final onColor = Colors.white;
     final offIcon = isDark ? Colors.white60 : Colors.black54;
 
-    return Expanded(
-      child: Semantics(
-        button: true,
-        selected: selected,
-        label: item.label,
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () {
-              HapticFeedback.selectionClick();
-              onTap();
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOutCubic,
-              height: double.infinity,
-              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
-              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                gradient: selected
-                    ? const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          _MemberHomePageState._orange,
-                          _MemberHomePageState._gold,
-                        ],
-                      )
-                    : null,
-                border: selected
-                    ? Border.all(
-                        color: Colors.white.withValues(alpha: 0.5),
-                        width: 1,
-                      )
-                    : null,
-                boxShadow: selected
-                    ? [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.12),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AnimatedScale(
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOutCubic,
-                    scale: selected ? 1.1 : 1.0,
-                    child: Icon(
-                      item.icon,
-                      size: selected ? 24 : 22,
-                      color: selected ? onColor : offIcon,
-                    ),
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: item.label,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onTap();
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            height: double.infinity,
+            margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              gradient: selected
+                  ? const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        _MemberHomePageState._orange,
+                        _MemberHomePageState._gold,
+                      ],
+                    )
+                  : null,
+              border: selected
+                  ? Border.all(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      width: 1,
+                    )
+                  : null,
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.12),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedScale(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  scale: selected ? 1.1 : 1.0,
+                  child: Icon(
+                    item.icon,
+                    size: selected ? 24 : 22,
+                    color: selected ? onColor : offIcon,
                   ),
-                  const SizedBox(height: 5),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 160),
-                    switchInCurve: Curves.easeOut,
-                    switchOutCurve: Curves.easeIn,
-                    child: selected
-                        ? Text(
-                            item.label,
-                            key: const ValueKey('label-on'),
-                            maxLines: 1,
-                            overflow: TextOverflow.fade,
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.notoSansThai(
-                              fontWeight: FontWeight.w900,
-                              height: 1.0,
-                              fontSize: 15 * ts,
-                              color: onColor,
-                            ),
-                          )
-                        : const SizedBox(
-                            key: ValueKey('label-off'),
-                            height: 0,
-                            width: 0,
+                ),
+                const SizedBox(height: 5),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 160),
+                  switchInCurve: Curves.easeOut,
+                  switchOutCurve: Curves.easeIn,
+                  child: selected
+                      ? Text(
+                          item.label,
+                          key: const ValueKey('label-on'),
+                          maxLines: 1,
+                          overflow: TextOverflow.fade,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.notoSansThai(
+                            fontWeight: FontWeight.w900,
+                            height: 1.0,
+                            fontSize: 15 * ts,
+                            color: onColor,
                           ),
-                  ),
-                ],
-              ),
+                        )
+                      : const SizedBox(
+                          key: ValueKey('label-off'),
+                          height: 0,
+                          width: 0,
+                        ),
+                ),
+              ],
             ),
           ),
         ),
