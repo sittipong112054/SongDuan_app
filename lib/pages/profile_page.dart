@@ -277,7 +277,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               ),
                             );
                           },
-                          errorBuilder: (_, __, ___) => const SizedBox(
+                          errorBuilder: (_, _, _) => const SizedBox(
                             height: 320,
                             child: Center(
                               child: Icon(

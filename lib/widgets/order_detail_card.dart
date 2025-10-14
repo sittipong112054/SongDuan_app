@@ -122,7 +122,7 @@ class OrderDetailCard extends StatelessWidget {
                               ),
                             );
                           },
-                          errorBuilder: (_, __, ___) => const SizedBox(
+                          errorBuilder: (_, _, _) => const SizedBox(
                             height: 320,
                             child: Center(
                               child: Icon(
@@ -307,7 +307,7 @@ class OrderDetailCard extends StatelessWidget {
                                   ),
                                 );
                               },
-                              errorBuilder: (_, __, ___) =>
+                              errorBuilder: (_, _, _) =>
                                   const _PhotoPlaceholder(
                                     text: 'โหลดรูปไม่สำเร็จ',
                                   ),
@@ -476,7 +476,7 @@ class _PersonBlock extends StatelessWidget {
         radius: 20,
         backgroundColor: Colors.grey.shade200,
         backgroundImage: NetworkImage(info.avatar),
-        onBackgroundImageError: (_, __) {},
+        onBackgroundImageError: (_, _) {},
       );
     } else if (info.avatar.startsWith('assets/')) {
       avatarWidget = CircleAvatar(
@@ -600,7 +600,7 @@ class _StatusPhotoTile extends StatelessWidget {
                           ),
                         );
                       },
-                      errorBuilder: (_, __, ___) =>
+                      errorBuilder: (_, _, _) =>
                           const _PhotoPlaceholder(text: 'โหลดรูปไม่สำเร็จ'),
                     )
                   : const _PhotoPlaceholder(text: 'ยังไม่มีรูป'),

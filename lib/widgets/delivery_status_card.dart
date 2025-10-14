@@ -66,7 +66,7 @@ class DeliveryStatusCard extends StatelessWidget {
                     radius: 12,
                     backgroundColor: Colors.white,
                     backgroundImage: NetworkImage(byAvatarUrl!),
-                    onBackgroundImageError: (_, __) {},
+                    onBackgroundImageError: (_, _) {},
                   ),
                 ),
               Text(

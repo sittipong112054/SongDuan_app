@@ -84,7 +84,7 @@ class OrderCard extends StatelessWidget {
                     ? Image.network(
                         imagePath!,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
+                        errorBuilder: (_, _, _) =>
                             const _PhotoPlaceholder(text: 'โหลดรูปไม่สำเร็จ'),
                         loadingBuilder: (context, child, progress) {
                           if (progress == null) return child;

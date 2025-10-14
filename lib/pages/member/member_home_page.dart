@@ -8,7 +8,7 @@ import 'package:songduan_app/config/config.dart';
 import 'package:songduan_app/pages/profile_page.dart';
 import 'package:songduan_app/widgets/exit_guard.dart';
 import 'package:songduan_app/widgets/profile_header.dart';
-import 'package:songduan_app/widgets/Tab_Button.dart';
+import 'package:songduan_app/widgets/tab_button.dart';
 
 import 'package:songduan_app/pages/member/sender/sender_create_page.dart';
 import 'package:songduan_app/pages/member/sender/sender_map_page.dart';

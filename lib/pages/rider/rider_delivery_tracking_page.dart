@@ -1435,7 +1435,7 @@ class _JobMiniCard extends StatelessWidget {
         radius: 14,
         backgroundColor: Colors.grey.shade200,
         backgroundImage: NetworkImage(url!),
-        onBackgroundImageError: (_, __) {},
+        onBackgroundImageError: (_, _) {},
       );
     }
     return CircleAvatar(
@@ -1509,8 +1509,9 @@ class _CopyChip extends StatelessWidget {
       onTap: disabled
           ? null
           : () async {
+              final messenger = ScaffoldMessenger.maybeOf(context);
               await Clipboard.setData(ClipboardData(text: text));
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger?.showSnackBar(
                 SnackBar(
                   backgroundColor: Colors.black.withValues(alpha: 0.65),
                   behavior: SnackBarBehavior.floating,
