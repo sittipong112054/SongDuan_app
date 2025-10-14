@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:songduan_app/config/config.dart';
 import 'package:songduan_app/pages/profile_page.dart';
+import 'package:songduan_app/widgets/exit_guard.dart';
 import 'package:songduan_app/widgets/profile_header.dart';
 import 'package:songduan_app/widgets/Tab_Button.dart';
 
@@ -129,113 +130,116 @@ class _MemberHomePageState extends State<MemberHomePage> {
 
     final tabs = _isSender ? _senderTabs : _receiverTabs;
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: overlay,
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        body: Stack(
-          children: [
-            SafeArea(
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-                    child: ProfileHeader(
-                      name: _name,
-                      role: _roleLabel,
-                      image: _user['avatar_path']?.toString().isNotEmpty == true
-                          ? _user['avatar_path'] as String
-                          : 'assets/images/default_avatar.png',
-                      baseUrl: _baseUrl,
-                      onMorePressed: () =>
-                          Get.to(() => const ProfilePage(), arguments: _user),
+    return ExitGuard(
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: overlay,
+        child: Scaffold(
+          backgroundColor: Colors.white,
+          body: Stack(
+            children: [
+              SafeArea(
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+                      child: ProfileHeader(
+                        name: _name,
+                        role: _roleLabel,
+                        image:
+                            _user['avatar_path']?.toString().isNotEmpty == true
+                            ? _user['avatar_path'] as String
+                            : 'assets/images/default_avatar.png',
+                        baseUrl: _baseUrl,
+                        onMorePressed: () =>
+                            Get.to(() => const ProfilePage(), arguments: _user),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TabButton(
-                            text: "ผู้ส่ง",
-                            selected: _isSender,
-                            onTap: () => setState(() {
-                              _isSender = true;
-                              _senderIndex = _senderIndex.clamp(
-                                0,
-                                _senderTabs.length - 1,
-                              );
-                            }),
+                    const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TabButton(
+                              text: "ผู้ส่ง",
+                              selected: _isSender,
+                              onTap: () => setState(() {
+                                _isSender = true;
+                                _senderIndex = _senderIndex.clamp(
+                                  0,
+                                  _senderTabs.length - 1,
+                                );
+                              }),
+                            ),
                           ),
-                        ),
-                        Expanded(
-                          child: TabButton(
-                            text: "ผู้รับ",
-                            selected: !_isSender,
-                            onTap: () => setState(() {
-                              _isSender = false;
-                              _receiverIndex = _receiverIndex.clamp(
-                                0,
-                                _receiverTabs.length - 1,
-                              );
-                            }),
+                          Expanded(
+                            child: TabButton(
+                              text: "ผู้รับ",
+                              selected: !_isSender,
+                              onTap: () => setState(() {
+                                _isSender = false;
+                                _receiverIndex = _receiverIndex.clamp(
+                                  0,
+                                  _receiverTabs.length - 1,
+                                );
+                              }),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: IndexedStack(
-                      index: _currentIndex,
-                      children: _isSender
-                          ? [
-                              SenderCreatePage(
-                                key: UniqueKey(),
-                                baseUrl: _baseUrl!,
-                              ),
-                              SenderMapPage(
-                                key: UniqueKey(),
-                                baseUrl: _baseUrl!,
-                              ),
-                              SenderListPage(
-                                key: UniqueKey(),
-                                baseUrl: _baseUrl!,
-                              ),
-                            ]
-                          : [
-                              ReceiverMapPage(
-                                key: UniqueKey(),
-                                baseUrl: _baseUrl!,
-                              ),
-                              ReceiverListPage(
-                                key: UniqueKey(),
-                                baseUrl: _baseUrl!,
-                              ),
-                            ],
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: IndexedStack(
+                        index: _currentIndex,
+                        children: _isSender
+                            ? [
+                                SenderCreatePage(
+                                  key: UniqueKey(),
+                                  baseUrl: _baseUrl!,
+                                ),
+                                SenderMapPage(
+                                  key: UniqueKey(),
+                                  baseUrl: _baseUrl!,
+                                ),
+                                SenderListPage(
+                                  key: UniqueKey(),
+                                  baseUrl: _baseUrl!,
+                                ),
+                              ]
+                            : [
+                                ReceiverMapPage(
+                                  key: UniqueKey(),
+                                  baseUrl: _baseUrl!,
+                                ),
+                                ReceiverListPage(
+                                  key: UniqueKey(),
+                                  baseUrl: _baseUrl!,
+                                ),
+                              ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 10,
-              child: Center(
-                child: Container(
-                  color: Colors.transparent,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: CustomGradientNavBar(
-                    items: tabs,
-                    currentIndex: _currentIndex.clamp(0, tabs.length - 1),
-                    onTap: (idx) => setState(() => _currentIndex = idx),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 10,
+                child: Center(
+                  child: Container(
+                    color: Colors.transparent,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: CustomGradientNavBar(
+                      items: tabs,
+                      currentIndex: _currentIndex.clamp(0, tabs.length - 1),
+                      onTap: (idx) => setState(() => _currentIndex = idx),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
