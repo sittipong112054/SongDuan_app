@@ -12,6 +12,10 @@ import 'package:songduan_app/services/api_helper.dart';
 import 'package:songduan_app/services/session_service.dart';
 import 'package:path/path.dart' as p;
 
+// เพิ่ม: แผนที่/พิกัด
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+
 import 'package:songduan_app/widgets/gradient_button.dart';
 import 'package:songduan_app/widgets/custom_text_field.dart';
 import 'package:songduan_app/widgets/section_title.dart';
@@ -119,6 +123,9 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
             'label': (a['label'] ?? 'ที่อยู่').toString(),
             'address_text': (a['address_text'] ?? '').toString(),
             'is_default': a['is_default'] == 1 || a['is_default'] == true,
+            // เพิ่ม lat/lng เพื่อใช้ปักหมุด pickup บนแผนที่ (ถ้าแบ็กเอนด์ส่งมา)
+            'lat': a['lat'],
+            'lng': a['lng'],
           };
         }).toList();
 
@@ -168,7 +175,6 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
           'phone': phone,
           'page': '1',
           'pageSize': '20',
-
           'requesterId': senderId.toString(),
         },
       );
@@ -358,6 +364,17 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
     }
   }
 
+  // Helper: แปลง lat/lng จาก dynamic ให้เป็น LatLng ที่ปลอดภัย
+  LatLng? _toLatLng(dynamic lat, dynamic lng) {
+    double? la, lo;
+    if (lat is num) la = lat.toDouble();
+    if (lng is num) lo = lng.toDouble();
+    if (lat is String) la = double.tryParse(lat);
+    if (lng is String) lo = double.tryParse(lng);
+    if (la != null && lo != null) return LatLng(la, lo);
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final canConfirm =
@@ -445,6 +462,40 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
               selectedIndex: _selectedAddressIndex,
               onPickIndex: (i) => setState(() => _selectedAddressIndex = i),
             ),
+
+          // แผนที่พรีวิว: โชว์เมื่อผู้ใช้เลือกที่อยู่ผู้รับแล้ว
+          if (_selectedAddressIndex != null && _results.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _MiniMapPreview(
+              // pickup: ใช้ที่อยู่ผู้ส่งที่เลือก ถ้ามีพิกัด
+              pickup: () {
+                if (_selectedPickupIndex != null &&
+                    _pickupAddresses.isNotEmpty) {
+                  final a = _pickupAddresses[_selectedPickupIndex!];
+                  return _toLatLng(a['lat'], a['lng']);
+                }
+                return null;
+              }(),
+              // dropoff: ใช้ผลค้นหาที่เลือก (ต้องมี lat/lng)
+              dropoff: () {
+                final m = _results[_selectedAddressIndex!];
+                return _toLatLng(m['lat'], m['lng']);
+              }(),
+              pickupLabel: () {
+                if (_selectedPickupIndex != null &&
+                    _pickupAddresses.isNotEmpty) {
+                  final a = _pickupAddresses[_selectedPickupIndex!];
+                  return (a['label'] ?? a['address_text'] ?? 'จุดรับของ')
+                      .toString();
+                }
+                return 'จุดรับของ';
+              }(),
+              dropoffLabel: () {
+                final m = _results[_selectedAddressIndex!];
+                return (m['address'] ?? 'จุดส่งของ').toString();
+              }(),
+            ),
+          ],
 
           const SizedBox(height: 12),
 
@@ -554,7 +605,7 @@ class _AddressPickList extends StatelessWidget {
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
           decoration: BoxDecoration(
-            color: Color(0xFFF0F2F5),
+            color: const Color(0xFFF0F2F5),
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
@@ -708,7 +759,7 @@ class _ReceiverCard extends StatelessWidget {
   }
 
   BoxDecoration _cardDecor() => BoxDecoration(
-    color: Color(0xFFF0F2F5),
+    color: const Color(0xFFF0F2F5),
     borderRadius: BorderRadius.circular(18),
     boxShadow: [
       BoxShadow(
@@ -946,4 +997,333 @@ class _HintTile extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// --- แผนที่พรีวิวตำแหน่งปลายทาง (และจุดรับ ถ้ามีพิกัด) ---
+/// เหตุผล:
+/// - ใช้ OSM ฟรี ไม่ต้อง API key → โหลดไวและไว้ใจได้สำหรับพรีวิว
+/// - ใช้ "เส้นตรง" เชื่อม pickup→dropoff เพื่อลดดีเลย์ตอนกรอกฟอร์ม
+/// - มี distance pill ให้ประเมินระยะทางคร่าว ๆ
+// แทนที่คลาส _MiniMapPreview เดิมทั้งหมดด้วยเวอร์ชันนี้
+class _MiniMapPreview extends StatefulWidget {
+  final LatLng? pickup;
+  final LatLng? dropoff;
+  final String pickupLabel;
+  final String dropoffLabel;
+
+  const _MiniMapPreview({
+    required this.pickup,
+    required this.dropoff,
+    required this.pickupLabel,
+    required this.dropoffLabel,
+  });
+
+  @override
+  State<_MiniMapPreview> createState() => _MiniMapPreviewState();
+}
+
+class _MiniMapPreviewState extends State<_MiniMapPreview> {
+  final MapController _map = MapController();
+
+  List<LatLng> _route = const [];
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshRouteAndFit();
+  }
+
+  @override
+  void didUpdateWidget(covariant _MiniMapPreview old) {
+    super.didUpdateWidget(old);
+    // ถ้าจุดเปลี่ยน → โหลดเส้นทางใหม่ + fit ใหม่
+    if (old.pickup != widget.pickup || old.dropoff != widget.dropoff) {
+      _refreshRouteAndFit();
+    }
+  }
+
+  Future<void> _refreshRouteAndFit() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+      _route = const [];
+    });
+
+    try {
+      // โหลดเส้นทาง OSRM ถ้ามี pickup+dropoff ครบ
+      if (widget.pickup != null && widget.dropoff != null) {
+        final pts = await _fetchRouteOSRM(widget.pickup!, widget.dropoff!);
+        // ถ้า OSRM ล้มเหลว ใช้เส้นตรงช่วยให้ยังเห็นภาพรวม
+        _route = pts.isNotEmpty
+            ? pts
+            : <LatLng>[widget.pickup!, widget.dropoff!];
+      }
+
+      // fit กล้องครอบทุกจุดที่เรามี
+      _fitAll();
+    } catch (e) {
+      _error = '$e';
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<List<LatLng>> _fetchRouteOSRM(LatLng from, LatLng to) async {
+    try {
+      final url = Uri.parse(
+        'https://router.project-osrm.org/route/v1/driving/'
+        '${from.longitude},${from.latitude};${to.longitude},${to.latitude}'
+        '?overview=full&geometries=geojson',
+      );
+      final resp = await http.get(url).timeout(const Duration(seconds: 12));
+      if (resp.statusCode != 200) return const [];
+
+      final body = jsonDecode(utf8.decode(resp.bodyBytes));
+      final routes = (body is Map && body['routes'] is List)
+          ? body['routes'] as List
+          : const [];
+      if (routes.isEmpty) return const [];
+
+      final geometry = routes.first['geometry'];
+      if (geometry is! Map) return const [];
+      final coords = geometry['coordinates'];
+      if (coords is! List) return const [];
+
+      final pts = <LatLng>[];
+      for (final c in coords) {
+        // geojson เป็น [lng, lat]
+        if (c is List && c.length >= 2) {
+          final lng = (c[0] as num).toDouble();
+          final lat = (c[1] as num).toDouble();
+          pts.add(LatLng(lat, lng));
+        }
+      }
+      return pts;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  void _fitAll() {
+    // รวมทุกจุดสำคัญไว้เพื่อ fit กล้อง
+    final pts = <LatLng>[
+      if (widget.pickup != null) widget.pickup!,
+      if (widget.dropoff != null) widget.dropoff!,
+      ..._route,
+    ];
+    if (pts.isEmpty) return;
+
+    // กันกล้องซูมแคบไปเมื่อมีจุดเดียว
+    final bounds = LatLngBounds.fromPoints(pts);
+    _map.fitCamera(
+      CameraFit.bounds(
+        bounds: bounds,
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 60),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final center =
+        widget.dropoff ?? widget.pickup ?? const LatLng(13.7563, 100.5018);
+
+    final polylines = <Polyline>[
+      if (_route.isNotEmpty)
+        Polyline(
+          points: _route,
+          strokeWidth: 4.5,
+          color: Colors.blueAccent.withValues(alpha: 0.8),
+        ),
+    ];
+
+    return Container(
+      height: 220,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F2F5),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          children: [
+            FlutterMap(
+              mapController: _map,
+              options: MapOptions(initialCenter: center, initialZoom: 14),
+              children: [
+                TileLayer(
+                  urlTemplate:
+                      'https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=0b03b55da9a64adab5790c1c9515b15a',
+                  userAgentPackageName: 'net.gonggang.osm_demo',
+                ),
+                if (polylines.isNotEmpty) PolylineLayer(polylines: polylines),
+                MarkerLayer(
+                  markers: [
+                    if (widget.pickup != null)
+                      Marker(
+                        point: widget.pickup!,
+                        width: 40,
+                        height: 40,
+                        child: const Icon(
+                          Icons.store_mall_directory_rounded,
+                          color: Colors.blue,
+                          size: 26,
+                        ),
+                      ),
+                    if (widget.dropoff != null)
+                      Marker(
+                        point: widget.dropoff!,
+                        width: 40,
+                        height: 40,
+                        child: const Icon(
+                          Icons.place_rounded,
+                          color: Colors.red,
+                          size: 26,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+
+            // แผงข้อมูลสรุป + ระยะทาง
+            Positioned(
+              left: 8,
+              right: 8,
+              bottom: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'จาก: ${widget.pickupLabel}\nถึง: ${widget.dropoffLabel}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                    if (widget.pickup != null && widget.dropoff != null) ...[
+                      const SizedBox(width: 8),
+                      _DistancePill(
+                        route: _route,
+                        from: widget.pickup!,
+                        to: widget.dropoff!,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+
+            if (_loading)
+              const Positioned.fill(
+                child: IgnorePointer(
+                  child: ColoredBox(
+                    color: Colors.transparent,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                ),
+              ),
+            if (_error != null && !_loading)
+              Positioned(
+                left: 8,
+                right: 8,
+                top: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFE9E9),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'เส้นทางไม่พร้อม: $_error',
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DistancePill extends StatelessWidget {
+  final LatLng? from; // เผื่อกรณีไม่มี pickup
+  final LatLng? to; // เผื่อกรณีไม่มี dropoff
+  final List<LatLng> route; // polyline จาก OSRM; ว่างได้
+
+  const _DistancePill({required this.route, this.from, this.to});
+
+  // คำนวณระยะทางตาม polyline (เมตร). ถ้า polyline สั้นเกินไป จะ fallback เป็นเส้นตรงจาก from→to
+  double _computeDistanceMeters() {
+    final dist = const Distance();
+
+    // 1) ถ้ามีเส้นทางจาก OSRM: รวมระยะทุก segment
+    if (route.length >= 2) {
+      double sum = 0;
+      for (int i = 0; i < route.length - 1; i++) {
+        sum += dist(route[i], route[i + 1]); // default เป็นเมตร
+      }
+      return sum;
+    }
+
+    // 2) ไม่มี polyline: ใช้เส้นตรงระหว่างจุด
+    if (from != null && to != null) {
+      return dist(from!, to!); // เมตร
+    }
+
+    // 3) ไม่มีข้อมูลพอ
+    return 0;
+  }
+
+  String _formatDistance(double meters) {
+    if (meters < 1) return '0 m';
+    if (meters < 1000) return '${meters.toStringAsFixed(0)} m';
+    final km = meters / 1000.0;
+    return km < 10
+        ? '${km.toStringAsFixed(2)} km'
+        : '${km.toStringAsFixed(1)} km';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final meters = _computeDistanceMeters();
+    final text = _formatDistance(meters);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.75),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
 }

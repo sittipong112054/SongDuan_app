@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -32,6 +33,8 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
   final Map<int, LatLng> _riderPos = {};
   final Map<int, List<LatLng>> _routes = {};
   final Map<int, LatLng> _lastRoutedFrom = {};
+  final Map<int, double> _riderHeadingDeg = {};
+  final Map<int, double> _riderSpeedMps = {};
   Timer? _pollTimer;
 
   int? _focusedIndex;
@@ -45,7 +48,7 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
     Color(0xFF16A085),
   ];
 
-  static const double _rerouteMetersThreshold = 15.0;
+  static const double _rerouteMetersThreshold = 30.0;
   final Map<int, DateTime> _lastRouteAt = {};
 
   @override
@@ -173,7 +176,7 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
     }
 
     tick();
-    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) => tick());
+    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => tick());
   }
 
   Future<void> _fetchRiderLocation(int riderId) async {
@@ -192,6 +195,15 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
     final lng = (d['lng'] as num?)?.toDouble();
     if (lat == null || lng == null) return;
     _riderPos[riderId] = LatLng(lat, lng);
+
+    final heading = (d['heading_deg'] as num?)?.toDouble();
+    if (heading != null && !heading.isNaN) {
+      _riderHeadingDeg[riderId] = (heading % 360 + 360) % 360;
+    }
+    final speed = (d['speed_mps'] as num?)?.toDouble();
+    if (speed != null && !speed.isNaN) {
+      _riderSpeedMps[riderId] = speed;
+    }
   }
 
   LatLng? _toLatLng(Map<String, dynamic>? m) {
@@ -224,7 +236,7 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
 
     final lastAt = _lastRouteAt[sid];
     final n = now ?? DateTime.now();
-    if (lastAt != null && n.difference(lastAt).inMilliseconds < 1500) {
+    if (lastAt != null && n.difference(lastAt).inMilliseconds < 4000) {
       return;
     }
 
@@ -332,6 +344,25 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
     return base.withValues(alpha: 0.7);
   }
 
+  LatLng _aheadPoint(LatLng from, double bearingDeg, double meters) {
+    const r = 6371000.0;
+    final br = bearingDeg * (math.pi / 180.0);
+    final lat1 = from.latitude * (math.pi / 180.0);
+    final lon1 = from.longitude * (math.pi / 180.0);
+    final dr = meters / r;
+    final lat2 = math.asin(
+      math.sin(lat1) * math.cos(dr) +
+          math.cos(lat1) * math.sin(dr) * math.cos(br),
+    );
+    final lon2 =
+        lon1 +
+        math.atan2(
+          math.sin(br) * math.sin(dr) * math.cos(lat1),
+          math.cos(dr) - math.sin(lat1) * math.sin(lat2),
+        );
+    return LatLng(lat2 * 180.0 / math.pi, lon2 * 180.0 / math.pi);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -347,7 +378,6 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
             const SizedBox(height: 8),
             _buildLegendBar(),
             const SizedBox(height: 12),
-
             if (_loading) ...[
               const _SkeletonCard(),
               const SizedBox(height: 12),
@@ -538,12 +568,58 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
         );
       }
       if (rp != null) {
+        final heading = _riderHeadingDeg[it.riderId!] ?? 0.0;
+        final ahead = _aheadPoint(rp, heading, 25.0);
+        polylines.add(
+          Polyline(
+            points: [rp, ahead],
+            strokeWidth: 3.0,
+            color: color.withValues(alpha: 0.95),
+          ),
+        );
+
+        final angleRad = (heading % 360) * (math.pi / 180.0);
+
         markers.add(
           Marker(
             point: rp,
             width: 44,
             height: 44,
-            child: _BadgeBike(n: i + 1, color: color),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Transform.rotate(
+                  angle: angleRad,
+                  child: const Icon(
+                    Icons.navigation_rounded,
+                    color: Colors.red,
+                    size: 26,
+                  ),
+                ),
+                Positioned(
+                  right: -2,
+                  top: -2,
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${i + 1}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       }
@@ -656,44 +732,6 @@ class _LegendChip extends StatelessWidget {
       shape: StadiumBorder(
         side: BorderSide(color: color.withValues(alpha: 0.60)),
       ),
-    );
-  }
-}
-
-class _BadgeBike extends StatelessWidget {
-  final int n;
-  final Color color;
-  const _BadgeBike({required this.n, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        const Icon(Icons.pedal_bike_rounded, color: Colors.red, size: 26),
-        Positioned(
-          right: -2,
-          top: -2,
-          child: Container(
-            width: 20,
-            height: 20,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              '$n',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

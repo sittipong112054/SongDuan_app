@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -77,13 +77,6 @@ class _ReceiverListPageState extends State<ReceiverListPage> {
                   as Map? ??
               {};
 
-          final double? distanceKm = (x['distance_km'] is num)
-              ? (x['distance_km'] as num).toDouble()
-              : null;
-          final String distanceText = distanceKm != null
-              ? '${distanceKm.toStringAsFixed(1)} กม.'
-              : _mockDistance(x['id'] ?? 0);
-
           final cover =
               (x['cover_file_path'] ?? x['file_path'] ?? '') as String;
           final coverUrl = abs(cover);
@@ -114,7 +107,7 @@ class _ReceiverListPageState extends State<ReceiverListPage> {
                 .toString(),
             'to': (dropoff['label'] ?? dropoff['address_text'] ?? '—')
                 .toString(),
-            'distance': distanceText,
+            'distance': "-",
             'image': coverUrl ?? deliverPhotoUrl ?? pickupPhotoUrl,
             'status': _mapStatus((x['status'] ?? '').toString()),
 
@@ -148,12 +141,6 @@ class _ReceiverListPageState extends State<ReceiverListPage> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  String _mockDistance(dynamic seed) {
-    final i = (seed is int) ? seed : 1;
-    final km = (1.2 + (i * 0.8) + Random(i).nextDouble()).toStringAsFixed(1);
-    return '$km กม.';
   }
 
   String _joinBase(String base, String rel) {

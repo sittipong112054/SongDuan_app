@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -10,6 +9,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:songduan_app/config/config.dart';
 import 'package:songduan_app/pages/profile_page.dart';
 import 'package:songduan_app/pages/rider/rider_delivery_tracking_page.dart';
+import 'package:songduan_app/pages/rider/rider_job_map_preview_page.dart';
 import 'package:songduan_app/services/api_helper.dart';
 import 'package:songduan_app/services/session_service.dart';
 import 'package:songduan_app/widgets/order_card.dart';
@@ -189,13 +189,6 @@ class _RiderHomePageState extends State<RiderHomePage> {
           final dropoff =
               (x['dropoff'] ?? x['dropoff_address'] ?? {}) as Map? ?? {};
 
-          final double? distanceKm = (x['distance_km'] is num)
-              ? (x['distance_km'] as num).toDouble()
-              : null;
-          final distanceText = distanceKm != null
-              ? '${distanceKm.toStringAsFixed(1)} กม.'
-              : _mockDistance(x['id'] ?? 0);
-
           final cover =
               (x['cover_file_path'] ?? x['file_path'] ?? '') as String;
           final imagePath = cover.trim().isEmpty
@@ -227,7 +220,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
                 .toString(),
             'to': (dropoff['label'] ?? dropoff['address_text'] ?? '—')
                 .toString(),
-            'distance': distanceText,
+            'distance': "-",
             'image': imagePath,
             'sender_avatar': senderAvatar,
             'receiver_avatar': receiverAvatar,
@@ -340,12 +333,6 @@ class _RiderHomePageState extends State<RiderHomePage> {
     return '$b$r';
   }
 
-  String _mockDistance(dynamic seed) {
-    final i = (seed is int) ? seed : 1;
-    final km = (1.2 + (i * 0.8) + Random(i).nextDouble()).toStringAsFixed(1);
-    return '$km กม.';
-  }
-
   OrderStatus _mapStatus(String s) {
     switch (s.toUpperCase()) {
       case 'WAITING_FOR_RIDER':
@@ -359,6 +346,20 @@ class _RiderHomePageState extends State<RiderHomePage> {
       default:
         return OrderStatus.waitingPickup;
     }
+  }
+
+  LatLng? _safeLatLng(Map<dynamic, dynamic> m) {
+    final lat = m['lat'] ?? m['latitude'];
+    final lng = m['lng'] ?? m['longitude'];
+    if (lat is num && lng is num) {
+      return LatLng(lat.toDouble(), lng.toDouble());
+    }
+    if (lat is String && lng is String) {
+      final la = double.tryParse(lat);
+      final lo = double.tryParse(lng);
+      if (la != null && lo != null) return LatLng(la, lo);
+    }
+    return null;
   }
 
   void _openDetail(Map<String, dynamic> m) {
@@ -416,7 +417,86 @@ class _RiderHomePageState extends State<RiderHomePage> {
                   ),
                   showStatus: false,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
+
+                Align(
+                  alignment: Alignment.center,
+                  child: TextButton.icon(
+                    onPressed: () {
+                      final LatLng? p = _safeLatLng(pickup);
+                      final LatLng? d = _safeLatLng(dropoff);
+                      if (p == null || d == null) {
+                        Get.snackbar(
+                          'พิกัดไม่สมบูรณ์',
+                          'ไม่พบ lat/lng ของจุดรับหรือส่ง',
+                          snackPosition: SnackPosition.BOTTOM,
+                        );
+                        return;
+                      }
+
+                      final senderName = (raw['sender']?['name'] ?? '')
+                          .toString();
+                      final senderPhone = (raw['sender']?['phone'] ?? '')
+                          .toString();
+                      final senderAddress =
+                          (pickup['address_text'] ?? pickup['label'] ?? '')
+                              .toString();
+
+                      final receiverName = (raw['receiver']?['name'] ?? '')
+                          .toString();
+                      final receiverPhone = (raw['receiver']?['phone'] ?? '')
+                          .toString();
+                      final receiverAddress =
+                          (dropoff['address_text'] ?? dropoff['label'] ?? '')
+                              .toString();
+
+                      Get.to(
+                        () => RiderJobMapPreviewPage(
+                          pickup: p,
+                          dropoff: d,
+                          pickupLabel:
+                              (pickup['label'] ??
+                                      pickup['address_text'] ??
+                                      'จุดรับของ')
+                                  .toString(),
+                          dropoffLabel:
+                              (dropoff['label'] ??
+                                      dropoff['address_text'] ??
+                                      'จุดส่งของ')
+                                  .toString(),
+
+                          senderName: senderName.isEmpty ? null : senderName,
+                          senderPhone: senderPhone.isEmpty ? null : senderPhone,
+                          senderAddress: senderAddress.isEmpty
+                              ? null
+                              : senderAddress,
+                          senderAvatar: senderAvatar,
+
+                          receiverName: receiverName.isEmpty
+                              ? null
+                              : receiverName,
+                          receiverPhone: receiverPhone.isEmpty
+                              ? null
+                              : receiverPhone,
+                          receiverAddress: receiverAddress.isEmpty
+                              ? null
+                              : receiverAddress,
+                          receiverAvatar: receiverAvatar,
+                        ),
+                      );
+                    },
+
+                    icon: const Icon(Icons.map_rounded),
+                    label: Text(
+                      'ดูแผนที่',
+                      style: GoogleFonts.notoSansThai(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 8),
 
                 if (status == OrderStatus.waitingPickup)
                   Obx(() {

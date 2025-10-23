@@ -1081,7 +1081,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                                   height: 52,
                                   child: ValueListenableBuilder<LatLng?>(
                                     valueListenable: _meVN,
-                                    builder: (_, me, __) {
+                                    builder: (_, me, _) {
                                       final angle =
                                           ((_lastHeadingDegFromSensor ?? 0) %
                                               360) *
@@ -1090,7 +1090,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                                       return Transform.rotate(
                                         angle: angle,
                                         child: const Icon(
-                                          Icons.motorcycle_rounded,
+                                          Icons.navigation_rounded,
                                           color: Colors.red,
                                           size: 38,
                                         ),
@@ -1173,7 +1173,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                                                   >(
                                                     valueListenable:
                                                         _distPickupVN,
-                                                    builder: (_, v, __) => Text(
+                                                    builder: (_, v, _) => Text(
                                                       'ไปจุดรับ: ${_mLabel(v)}',
                                                     ),
                                                   ),
@@ -1185,7 +1185,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                                                   >(
                                                     valueListenable:
                                                         _distDropVN,
-                                                    builder: (_, v, __) => Text(
+                                                    builder: (_, v, _) => Text(
                                                       'ไปจุดส่ง: ${_mLabel(v)}',
                                                       textAlign:
                                                           TextAlign.right,
@@ -1260,7 +1260,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                                             alignment: Alignment.center,
                                             child: ValueListenableBuilder<double?>(
                                               valueListenable: _speedVN,
-                                              builder: (_, v, __) => Column(
+                                              builder: (_, v, _) => Column(
                                                 mainAxisAlignment:
                                                     MainAxisAlignment.center,
                                                 children: [
@@ -1676,7 +1676,7 @@ class _JobMiniCard extends StatelessWidget {
         radius: 14,
         backgroundColor: Colors.grey.shade200,
         backgroundImage: NetworkImage(url!),
-        onBackgroundImageError: (_, __) {},
+        onBackgroundImageError: (_, _) {},
       );
     }
     return CircleAvatar(
