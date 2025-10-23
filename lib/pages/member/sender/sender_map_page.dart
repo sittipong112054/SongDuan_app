@@ -30,12 +30,14 @@ class _SenderMapPageState extends State<SenderMapPage> {
   String? _error;
 
   List<_Incoming> _items = [];
+
   final Map<int, LatLng> _riderPos = {};
   final Map<int, List<LatLng>> _routes = {};
   final Map<int, LatLng> _lastRoutedFrom = {};
   final Map<int, double> _riderHeadingDeg = {};
   final Map<int, double> _riderSpeedMps = {};
   Timer? _pollTimer;
+  Timer? _shipTimer;
 
   int? _focusedIndex;
 
@@ -51,6 +53,14 @@ class _SenderMapPageState extends State<SenderMapPage> {
   static const double _rerouteMetersThreshold = 15.0;
   final Map<int, DateTime> _lastRouteAt = {};
 
+  static const int _shipRefreshSec = 20;
+
+  static const double _nearMeters = 20.0;
+  static const double _nearExitMeters = 35.0;
+  static const int _nearCooldownSec = 25;
+  final Map<int, bool> _isNearTarget = {};
+  final Map<int, DateTime> _lastNearRefreshAt = {};
+
   @override
   void initState() {
     super.initState();
@@ -60,6 +70,7 @@ class _SenderMapPageState extends State<SenderMapPage> {
   @override
   void dispose() {
     _pollTimer?.cancel();
+    _shipTimer?.cancel();
     super.dispose();
   }
 
@@ -71,6 +82,7 @@ class _SenderMapPageState extends State<SenderMapPage> {
     try {
       await _fetchShipments();
       _startPollingRiders();
+      _startSoftRefresh();
     } catch (e) {
       setState(() => _error = '$e');
     } finally {
@@ -146,6 +158,104 @@ class _SenderMapPageState extends State<SenderMapPage> {
     _fitToAll();
   }
 
+  Future<void> _refreshShipmentsSoft() async {
+    final me = Get.find<SessionService>().currentUserId;
+    if (me == null) return;
+
+    final uri = Uri.parse(
+      '${widget.baseUrl}/shipments?sender_id=$me&pageSize=100',
+    );
+    try {
+      final resp = await http
+          .get(uri, headers: await authHeaders())
+          .timeout(const Duration(seconds: 12));
+      handleAuthErrorIfAny(resp);
+      if (resp.statusCode != 200) return;
+
+      final json =
+          jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+      final list = (json['data'] as List? ?? []).whereType<Map>().toList();
+
+      final latestById = <int, _Incoming>{};
+      for (final r in list) {
+        final status = (r['status'] ?? '').toString();
+        if (status != 'RIDER_ACCEPTED' && status != 'PICKED_UP_EN_ROUTE') {
+          continue;
+        }
+        final pickup = r['pickup'] as Map<String, dynamic>?;
+        final dropoff = r['dropoff'] as Map<String, dynamic>?;
+        final assignment = r['assignment'] as Map<String, dynamic>?;
+        final rider =
+            assignment?['rider'] as Map<String, dynamic>? ??
+            r['rider'] as Map<String, dynamic>?;
+        final riderId = (assignment?['rider_id'] ?? r['rider_id']);
+        final riderName = (rider?['name'] ?? 'ไรเดอร์').toString();
+
+        final incoming = _Incoming(
+          shipmentId: (r['id'] as num).toInt(),
+          title: (r['title'] ?? 'Incoming Delivery').toString(),
+          status: status,
+          senderAvatar: (r['sender'] as Map?)?['avatar_path'] as String?,
+          riderName: riderName,
+          pickupText: (pickup?['label'] ?? pickup?['address_text'] ?? 'จุดรับ')
+              .toString(),
+          dropoffText:
+              (dropoff?['label'] ?? dropoff?['address_text'] ?? 'จุดส่ง')
+                  .toString(),
+          pickupLatLng: _toLatLng(pickup),
+          dropoffLatLng: _toLatLng(dropoff),
+          riderId: riderId is num ? riderId.toInt() : null,
+          cover: r['cover_file_path'] as String?,
+        );
+        latestById[incoming.shipmentId] = incoming;
+      }
+
+      var changed = false;
+      final next = <_Incoming>[];
+
+      for (final old in _items) {
+        final fresh = latestById[old.shipmentId];
+        if (fresh == null) {
+          next.add(old);
+          continue;
+        }
+        next.add(fresh);
+        if (fresh.status != old.status ||
+            fresh.riderId != old.riderId ||
+            fresh.pickupLatLng != old.pickupLatLng ||
+            fresh.dropoffLatLng != old.dropoffLatLng) {
+          changed = true;
+        }
+      }
+
+      for (final entry in latestById.entries) {
+        final exist = _items.any((e) => e.shipmentId == entry.key);
+        if (!exist) {
+          next.add(entry.value);
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        next.sort((a, b) => b.shipmentId.compareTo(a.shipmentId));
+        setState(() => _items = next);
+        if (_focusedIndex != null && _focusedIndex! < _items.length) {
+          _fitShipment(_focusedIndex!);
+        } else {
+          _fitToAll();
+        }
+      }
+    } catch (_) {}
+  }
+
+  void _startSoftRefresh() {
+    _shipTimer?.cancel();
+    _shipTimer = Timer.periodic(
+      const Duration(seconds: _shipRefreshSec),
+      (_) async => _refreshShipmentsSoft(),
+    );
+  }
+
   void _startPollingRiders() {
     _pollTimer?.cancel();
     if (_items.isEmpty) return;
@@ -163,6 +273,8 @@ class _SenderMapPageState extends State<SenderMapPage> {
         for (var i = 0; i < _items.length; i++) {
           await _ensureRouteFor(i, now: now);
         }
+
+        await _maybeRefreshOnProximity();
 
         if (!mounted) return;
         setState(() {});
@@ -236,7 +348,7 @@ class _SenderMapPageState extends State<SenderMapPage> {
 
     final lastAt = _lastRouteAt[sid];
     final n = now ?? DateTime.now();
-    if (lastAt != null && n.difference(lastAt).inMilliseconds < 1500) {
+    if (lastAt != null && n.difference(lastAt).inMilliseconds < 4000) {
       return;
     }
 
@@ -282,6 +394,45 @@ class _SenderMapPageState extends State<SenderMapPage> {
       return out;
     } catch (_) {
       return null;
+    }
+  }
+
+  Future<void> _maybeRefreshOnProximity() async {
+    final now = DateTime.now();
+
+    for (var i = 0; i < _items.length; i++) {
+      final it = _items[i];
+      if (it.riderId == null) continue;
+
+      final rp = _riderPos[it.riderId!];
+      if (rp == null) continue;
+
+      final LatLng? target = switch (it.status) {
+        'RIDER_ACCEPTED' => it.pickupLatLng,
+        'PICKED_UP_EN_ROUTE' => it.dropoffLatLng,
+        _ => null,
+      };
+      if (target == null) continue;
+
+      final dist = _distanceMeters(rp, target);
+
+      final wasNear = _isNearTarget[it.shipmentId] ?? false;
+      final enterNear = !wasNear && dist <= _nearMeters;
+      final exitNear = wasNear && dist >= _nearExitMeters;
+
+      if (enterNear) {
+        final last = _lastNearRefreshAt[it.shipmentId];
+        final coolOk =
+            last == null || now.difference(last).inSeconds >= _nearCooldownSec;
+
+        if (coolOk) {
+          await _refreshShipmentsSoft();
+          _lastNearRefreshAt[it.shipmentId] = now;
+        }
+        _isNearTarget[it.shipmentId] = true;
+      } else if (exitNear) {
+        _isNearTarget[it.shipmentId] = false;
+      }
     }
   }
 
@@ -578,6 +729,8 @@ class _SenderMapPageState extends State<SenderMapPage> {
           ),
         );
 
+        final angleRad = (heading % 360) * (math.pi / 180.0);
+
         markers.add(
           Marker(
             point: rp,
@@ -587,7 +740,7 @@ class _SenderMapPageState extends State<SenderMapPage> {
               alignment: Alignment.center,
               children: [
                 Transform.rotate(
-                  angle: (heading % 360) * (math.pi / 180.0),
+                  angle: angleRad,
                   child: const Icon(
                     Icons.navigation_rounded,
                     color: Colors.red,

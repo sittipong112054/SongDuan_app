@@ -37,6 +37,9 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
   final Map<int, double> _riderSpeedMps = {};
   Timer? _pollTimer;
 
+  Timer? _shipTimer;
+  static const _shipRefreshSec = 20;
+
   int? _focusedIndex;
 
   static const _palette = <Color>[
@@ -51,6 +54,103 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
   static const double _rerouteMetersThreshold = 30.0;
   final Map<int, DateTime> _lastRouteAt = {};
 
+  final Distance _dist = const Distance();
+
+  double _polylineMeters(List<LatLng> pts) {
+    if (pts.length < 2) return 0;
+    double sum = 0;
+    for (int i = 0; i < pts.length - 1; i++) {
+      sum += _dist(pts[i], pts[i + 1]);
+    }
+    return sum;
+  }
+
+  double _distanceMeters(LatLng a, LatLng b) {
+    return _dist.as(LengthUnit.Meter, a, b);
+  }
+
+  double? _currentLegMetersFor(_Incoming it) {
+    final rp = it.riderId != null ? _riderPos[it.riderId!] : null;
+    if (rp == null) return null;
+
+    final target = switch (it.status) {
+      'RIDER_ACCEPTED' => it.pickupLatLng,
+      'PICKED_UP_EN_ROUTE' => it.dropoffLatLng,
+      _ => null,
+    };
+    if (target == null) return null;
+
+    final routePts = _routes[it.shipmentId];
+    if (routePts != null && routePts.length >= 2) {
+      return _polylineMeters(routePts);
+    }
+    return _dist(rp, target);
+  }
+
+  String _fmtMeters(double m) {
+    if (m < 1) return '0 m';
+    if (m < 1000) return '${m.toStringAsFixed(0)} m';
+    final km = m / 1000.0;
+    return km < 10
+        ? '${km.toStringAsFixed(2)} km'
+        : '${km.toStringAsFixed(1)} km';
+  }
+
+  final Map<int, bool> _isNearTarget = {};
+  final Map<int, DateTime> _lastNearRefreshAt = {};
+  static const _nearEnterMeters = 20.0;
+  static const _nearExitMeters = 35.0;
+  static const _nearCooldownSec = 25;
+
+  Future<void> _maybeRefreshOnProximity() async {
+    if (_items.isEmpty) return;
+    bool needRefresh = false;
+
+    for (final it in _items) {
+      final rid = it.riderId;
+      if (rid == null) continue;
+      final rp = _riderPos[rid];
+      if (rp == null) continue;
+
+      final target = switch (it.status) {
+        'RIDER_ACCEPTED' => it.pickupLatLng,
+        'PICKED_UP_EN_ROUTE' => it.dropoffLatLng,
+        _ => null,
+      };
+      if (target == null) continue;
+
+      final d = _distanceMeters(rp, target);
+      final wasNear = _isNearTarget[it.shipmentId] ?? false;
+
+      final enterNear = !wasNear && d <= _nearEnterMeters;
+      final exitNear = wasNear && d >= _nearExitMeters;
+
+      if (enterNear) {
+        final last = _lastNearRefreshAt[it.shipmentId];
+        final coolOk =
+            last == null ||
+            DateTime.now().difference(last).inSeconds >= _nearCooldownSec;
+        if (coolOk) {
+          needRefresh = true;
+          _lastNearRefreshAt[it.shipmentId] = DateTime.now();
+        }
+        _isNearTarget[it.shipmentId] = true;
+      } else if (exitNear) {
+        _isNearTarget[it.shipmentId] = false;
+      }
+    }
+
+    if (needRefresh) {
+      await _refreshShipmentsSoft();
+      if (!mounted) return;
+      if (_focusedIndex != null && _focusedIndex! < _items.length) {
+        _fitShipment(_focusedIndex!);
+      } else {
+        _fitToAll();
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -60,6 +160,7 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
   @override
   void dispose() {
     _pollTimer?.cancel();
+    _shipTimer?.cancel();
     super.dispose();
   }
 
@@ -146,8 +247,90 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
     _fitToAll();
   }
 
+  Future<void> _refreshShipmentsSoft() async {
+    final me = Get.find<SessionService>().currentUserId;
+    if (me == null) return;
+    final uri = Uri.parse(
+      '${widget.baseUrl}/shipments?receiver_id=$me&pageSize=100',
+    );
+    final resp = await http
+        .get(uri, headers: await authHeaders())
+        .timeout(const Duration(seconds: 15));
+    handleAuthErrorIfAny(resp);
+    if (resp.statusCode != 200) return;
+
+    final json =
+        jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+    final list = (json['data'] as List? ?? []).whereType<Map>().toList();
+
+    final fresh = <_Incoming>[];
+    for (final r in list) {
+      final status = (r['status'] ?? '').toString();
+      if (status != 'RIDER_ACCEPTED' && status != 'PICKED_UP_EN_ROUTE') {
+        continue;
+      }
+
+      final sender = r['sender'] as Map<String, dynamic>?;
+      final pickup = r['pickup'] as Map<String, dynamic>?;
+      final dropoff = r['dropoff'] as Map<String, dynamic>?;
+      final assignment = r['assignment'] as Map<String, dynamic>?;
+      final rider =
+          assignment?['rider'] as Map<String, dynamic>? ??
+          r['rider'] as Map<String, dynamic>?;
+      final riderId = (assignment?['rider_id'] ?? r['rider_id']);
+      final riderName = (rider?['name'] ?? 'ไรเดอร์').toString();
+
+      fresh.add(
+        _Incoming(
+          shipmentId: (r['id'] as num).toInt(),
+          title: (r['title'] ?? 'Incoming Delivery').toString(),
+          status: status,
+          senderAvatar: sender?['avatar_path'] as String?,
+          riderName: riderName,
+          pickupText: (pickup?['label'] ?? pickup?['address_text'] ?? 'จุดรับ')
+              .toString(),
+          dropoffText:
+              (dropoff?['label'] ?? dropoff?['address_text'] ?? 'จุดส่ง')
+                  .toString(),
+          pickupLatLng: _toLatLng(pickup),
+          dropoffLatLng: _toLatLng(dropoff),
+          riderId: riderId is num ? riderId.toInt() : null,
+          cover: r['cover_file_path'] as String?,
+        ),
+      );
+    }
+    fresh.sort((a, b) => b.shipmentId.compareTo(a.shipmentId));
+
+    if (!mounted) return;
+
+    final oldById = {for (final it in _items) it.shipmentId: it};
+    final newIds = fresh.map((e) => e.shipmentId).toSet();
+
+    setState(() {
+      _items = fresh;
+      _routes.keys
+          .where((k) => !newIds.contains(k))
+          .toList()
+          .forEach(_routes.remove);
+
+      if (_focusedIndex != null) {
+        if (oldById.isEmpty || _focusedIndex! >= oldById.length) {
+          _focusedIndex = null;
+        } else {
+          final oldFocused = oldById.values.elementAt(_focusedIndex!);
+          final idxNew = _items.indexWhere(
+            (e) => e.shipmentId == oldFocused.shipmentId,
+          );
+          _focusedIndex = idxNew >= 0 ? idxNew : null;
+        }
+      }
+    });
+  }
+
   void _startPollingRiders() {
     _pollTimer?.cancel();
+    _shipTimer?.cancel();
+
     if (_items.isEmpty) return;
 
     Future<void> tick() async {
@@ -164,6 +347,8 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
           await _ensureRouteFor(i, now: now);
         }
 
+        await _maybeRefreshOnProximity();
+
         if (!mounted) return;
         setState(() {});
 
@@ -176,7 +361,17 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
     }
 
     tick();
-    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => tick());
+    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) => tick());
+
+    _shipTimer = Timer.periodic(Duration(seconds: _shipRefreshSec), (_) async {
+      try {
+        await _refreshShipmentsSoft();
+        if (!mounted) return;
+        if (_focusedIndex != null && _focusedIndex! < _items.length) {
+          _fitShipment(_focusedIndex!);
+        }
+      } catch (_) {}
+    });
   }
 
   Future<void> _fetchRiderLocation(int riderId) async {
@@ -323,11 +518,6 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
     _map.fitCamera(fit);
   }
 
-  double _distanceMeters(LatLng a, LatLng b) {
-    final d = const Distance();
-    return d.as(LengthUnit.Meter, a, b);
-  }
-
   String _short(String s, {int max = 14}) {
     final t = s.trim();
     if (t.length <= max) return t;
@@ -455,10 +645,14 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
             final i = e.$1;
             final it = e.$2;
             final color = _palette[i % _palette.length];
+
+            final meters = _currentLegMetersFor(it);
+            final distText = meters == null ? '' : ' · ${_fmtMeters(meters)}';
+
             return Padding(
               padding: const EdgeInsets.only(right: 6),
               child: _LegendChip(
-                label: '#${i + 1} ${_short(it.title)}',
+                label: '#${i + 1} ${_short(it.title)}$distText',
                 color: color,
                 selected: _focusedIndex == i,
                 onTap: () {
