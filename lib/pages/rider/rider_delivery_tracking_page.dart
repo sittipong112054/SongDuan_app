@@ -281,27 +281,28 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
   LatLng? _pendingCenter;
   double _pendingZoom = 16;
 
-  LatLng? _me;
+  final ValueNotifier<LatLng?> _meVN = ValueNotifier<LatLng?>(null);
+  final ValueNotifier<double?> _speedVN = ValueNotifier<double?>(null);
+  final ValueNotifier<double?> _distPickupVN = ValueNotifier<double?>(null);
+  final ValueNotifier<double?> _distDropVN = ValueNotifier<double?>(null);
+
   bool _loading = true;
   String? _error;
-
-  Timer? _tick;
   StreamSubscription<Position>? _posSub;
 
   static const double kGateMeters = 20.0;
   bool _pickedUp = false;
   bool _actionBusy = false;
 
-  double? _distToPickup;
-  double? _distToDrop;
-
   bool get _canPickup =>
-      _me != null && _distToPickup != null && _distToPickup! <= kGateMeters;
+      _meVN.value != null &&
+      _distPickupVN.value != null &&
+      _distPickupVN.value! <= kGateMeters;
   bool get _canDeliver =>
       _pickedUp &&
-      _me != null &&
-      _distToDrop != null &&
-      _distToDrop! <= kGateMeters;
+      _meVN.value != null &&
+      _distDropVN.value != null &&
+      _distDropVN.value! <= kGateMeters;
 
   final _picker = ImagePicker();
   File? _pickupPhotoFile;
@@ -324,6 +325,18 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
   double? _lastHeadingDegFromSensor;
   double? _lastSpeedMpsFromSensor;
 
+  bool _sending = false;
+  DateTime? _lastSendTryAt;
+  final Duration _minSendGap = const Duration(milliseconds: 600);
+
+  double? _speedMpsDisplay;
+  final double _speedSmoothAlpha = 0.35;
+
+  DateTime? _lastRouteAt;
+  final Duration _routeMinGap = const Duration(seconds: 6);
+
+  bool _followMe = true;
+
   String? _shipmentTitle;
   String? _senderName;
   String? _senderPhone;
@@ -331,6 +344,13 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
   String? _receiverPhone;
   String? _senderAvatarUrl;
   String? _receiverAvatarUrl;
+
+  LatLng? _lastSent;
+  DateTime? _lastSentAt;
+  LatLng? _lastRecenterPos;
+
+  DateTime? _lastUiTick;
+  final Duration _minUiTick = const Duration(milliseconds: 250);
 
   @override
   void initState() {
@@ -344,8 +364,11 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
 
   @override
   void dispose() {
-    _tick?.cancel();
     _posSub?.cancel();
+    _meVN.dispose();
+    _speedVN.dispose();
+    _distPickupVN.dispose();
+    _distDropVN.dispose();
     super.dispose();
   }
 
@@ -457,25 +480,38 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
         return;
       }
 
+      final LocationSettings common = const LocationSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 0,
+      );
+
+      LocationSettings effective = common;
+      if (Platform.isAndroid) {
+        effective = AndroidSettings(
+          accuracy: LocationAccuracy.bestForNavigation,
+          distanceFilter: 0,
+          intervalDuration: const Duration(milliseconds: 300),
+          forceLocationManager: false,
+        );
+      } else if (Platform.isIOS) {
+        effective = AppleSettings(
+          accuracy: LocationAccuracy.bestForNavigation,
+          distanceFilter: 0,
+          activityType: ActivityType.automotiveNavigation,
+          pauseLocationUpdatesAutomatically: true,
+          showBackgroundLocationIndicator: false,
+        );
+      }
+
       final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
+        locationSettings: effective,
       );
 
       _onPosition(LatLng(pos.latitude, pos.longitude), raw: pos);
 
       _posSub = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.best,
-          distanceFilter: 0,
-        ),
+        locationSettings: effective,
       ).listen((p) => _onPosition(LatLng(p.latitude, p.longitude), raw: p));
-
-      _tick = Timer.periodic(
-        const Duration(seconds: 5),
-        (_) => _sendLocation(),
-      );
     } catch (e) {
       setState(() {
         _error = 'เปิดตำแหน่งไม่สำเร็จ: $e';
@@ -500,30 +536,60 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
   }
 
   void _onPosition(LatLng latlng, {Position? raw}) {
-    _me = latlng;
+    _meVN.value = latlng;
     _loading = false;
 
-    _distToPickup = _distanceMeters(latlng, _pickup);
-    _distToDrop = _distanceMeters(latlng, _dropoff);
+    _distPickupVN.value = _distanceMeters(latlng, _pickup);
+    _distDropVN.value = _distanceMeters(latlng, _dropoff);
 
-    if (raw != null) {
-      _lastHeadingDegFromSensor = raw.heading;
-      _lastSpeedMpsFromSensor = raw.speed;
+    double? h = raw?.heading;
+    if (h == null || h.isNaN || h < 0) {
+      if (_lastSent != null) {
+        h = _bearingDegrees(_lastSent!, latlng);
+      }
+    }
+    _lastHeadingDegFromSensor = h;
+
+    double? s = raw?.speed;
+    if (s == null || s.isNaN || s < 0) {
+      if (_lastSent != null && _lastSentAt != null) {
+        final dt =
+            DateTime.now().difference(_lastSentAt!).inMilliseconds / 1000.0;
+        if (dt > 0) s = _distanceMeters(_lastSent!, latlng) / dt;
+      }
+    }
+    if (s != null && !s.isNaN) {
+      _speedMpsDisplay = (_speedMpsDisplay == null)
+          ? s
+          : _speedSmoothAlpha * s + (1 - _speedSmoothAlpha) * _speedMpsDisplay!;
+      _speedVN.value = _speedMpsDisplay;
     }
 
     if (_mapReady) {
-      _map.move(latlng, 16);
+      _maybeRecenter(latlng);
     } else {
       _pendingCenter = latlng;
       _pendingZoom = 16;
     }
 
-    if (mounted) setState(() {});
-    _updateRoute();
+    final now = DateTime.now();
+    if (_lastUiTick == null || now.difference(_lastUiTick!) >= _minUiTick) {
+      _lastUiTick = now;
+      if (mounted) setState(() {});
+    }
+
+    _trySendLocationThrottled();
+    _tryUpdateRouteDebounced();
   }
 
-  LatLng? _lastSent;
-  DateTime? _lastSentAt;
+  void _maybeRecenter(LatLng newPos) {
+    if (!_followMe) return;
+    final last = _lastRecenterPos;
+    if (last == null || _distanceMeters(last, newPos) > 8) {
+      _map.move(newPos, 16);
+      _lastRecenterPos = newPos;
+    }
+  }
 
   double _bearingDegrees(LatLng a, LatLng b) {
     final lat1 = a.latitude * (pi / 180.0);
@@ -535,67 +601,95 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     return (brng + 360.0) % 360.0;
   }
 
-  Future<void> _sendLocation() async {
-    if (_me == null) return;
-
-    double? headingDeg = _lastHeadingDegFromSensor;
-    double? speedMps = _lastSpeedMpsFromSensor;
-
+  void _trySendLocationThrottled() {
     final now = DateTime.now();
-    if ((headingDeg == null || headingDeg.isNaN || headingDeg < 0) &&
-        _lastSent != null) {
-      headingDeg = _bearingDegrees(_lastSent!, _me!);
+    if (_sending) return;
+    if (_lastSendTryAt != null &&
+        now.difference(_lastSendTryAt!) < _minSendGap) {
+      return;
     }
-    if ((speedMps == null || speedMps.isNaN || speedMps <= 0) &&
-        _lastSent != null &&
-        _lastSentAt != null) {
-      final dt = now.difference(_lastSentAt!).inMilliseconds / 1000.0;
-      if (dt > 0) {
-        final d = _distanceMeters(_lastSent!, _me!);
-        speedMps = d / dt;
-      }
+    _lastSendTryAt = now;
+    _sendLocation();
+  }
+
+  void _tryUpdateRouteDebounced() {
+    final now = DateTime.now();
+    if (_lastRouteAt != null && now.difference(_lastRouteAt!) < _routeMinGap) {
+      return;
     }
+    _lastRouteAt = now;
+    _updateRoute();
+  }
 
-    double round(double v, [int p = 6]) => double.parse(v.toStringAsFixed(p));
-    final riderId = Get.find<SessionService>().currentUserId;
-    if (riderId == null) return;
-
-    final uri = Uri.parse(
-      '${widget.baseUrl}/rider_locations/$riderId/location',
-    );
-    final payload = <String, dynamic>{
-      'lat': round(_me!.latitude, 7),
-      'lng': round(_me!.longitude, 7),
-      'shipment_id': widget.shipmentId,
-      if (headingDeg != null) 'heading_deg': round((headingDeg + 360) % 360, 2),
-      if (speedMps != null) 'speed_mps': round(speedMps, 2),
-    };
+  Future<void> _sendLocation() async {
+    final me = _meVN.value;
+    if (me == null) return;
+    if (_sending) return;
+    _sending = true;
 
     try {
+      double? headingDeg = _lastHeadingDegFromSensor;
+      double? speedMps = _lastSpeedMpsFromSensor;
+
+      final now = DateTime.now();
+      if ((headingDeg == null || headingDeg.isNaN || headingDeg < 0) &&
+          _lastSent != null) {
+        headingDeg = _bearingDegrees(_lastSent!, me);
+      }
+      if ((speedMps == null || speedMps.isNaN || speedMps <= 0) &&
+          _lastSent != null &&
+          _lastSentAt != null) {
+        final dt = now.difference(_lastSentAt!).inMilliseconds / 1000.0;
+        if (dt > 0) {
+          final d = _distanceMeters(_lastSent!, me);
+          speedMps = d / dt;
+        }
+      }
+
+      double round(double v, [int p = 6]) => double.parse(v.toStringAsFixed(p));
+      final riderId = Get.find<SessionService>().currentUserId;
+      if (riderId == null) return;
+
+      final uri = Uri.parse(
+        '${widget.baseUrl}/rider_locations/$riderId/location',
+      );
+      final payload = <String, dynamic>{
+        'lat': round(me.latitude, 7),
+        'lng': round(me.longitude, 7),
+        'shipment_id': widget.shipmentId,
+        if (headingDeg != null)
+          'heading_deg': round((headingDeg + 360) % 360, 2),
+        if (speedMps != null) 'speed_mps': round(speedMps, 2),
+      };
+
       final resp = await http
           .post(uri, headers: await authHeaders(), body: jsonEncode(payload))
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 8));
 
       handleAuthErrorIfAny(resp);
 
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
-        _lastSent = _me;
+        _lastSent = me;
         _lastSentAt = now;
+        _lastSpeedMpsFromSensor = speedMps;
       } else {
         debugPrint('ส่ง location ไม่สำเร็จ: ${resp.statusCode}');
       }
     } catch (e) {
       debugPrint('เกิดข้อผิดพลาดขณะอัปเดต location: $e');
+    } finally {
+      _sending = false;
     }
   }
 
   Future<void> _updateRoute() async {
-    if (_me == null) return;
+    final me = _meVN.value;
+    if (me == null) return;
 
     final url = Uri.parse(
       'https://router.project-osrm.org/route/v1/driving/'
-      '${_me!.longitude},${_me!.latitude};${_target.longitude},${_target.latitude}'
-      '?overview=full&geometries=geojson',
+      '${me.longitude},${me.latitude};${_target.longitude},${_target.latitude}'
+      '?overview=simplified&geometries=geojson',
     );
 
     try {
@@ -614,12 +708,14 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
               )
               .toList();
 
-          setState(() {
-            _routeLine = coords;
-            _routeDistanceMeters = (r['distance'] as num?)?.toDouble();
-            final sec = (r['duration'] as num?)?.toDouble() ?? 0;
-            _etaText = _fmtEta(sec);
-          });
+          if (mounted) {
+            setState(() {
+              _routeLine = coords;
+              _routeDistanceMeters = (r['distance'] as num?)?.toDouble();
+              final sec = (r['duration'] as num?)?.toDouble() ?? 0;
+              _etaText = _fmtEta(sec);
+            });
+          }
         }
       }
     } catch (_) {}
@@ -632,6 +728,19 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
     final h = m ~/ 60;
     final mm = m % 60;
     return '$h ชม $mm นาที';
+  }
+
+  String _speedNumber(double? mps) {
+    final kmh = (mps ?? 0) * 3.6;
+    return kmh < 10 ? kmh.toStringAsFixed(1) : kmh.toStringAsFixed(0);
+  }
+
+  void _toggleFollow() {
+    setState(() => _followMe = !_followMe);
+    if (_followMe && _mapReady && _meVN.value != null) {
+      _map.move(_meVN.value!, 16);
+      _lastRecenterPos = _meVN.value!;
+    }
   }
 
   Future<File?> _pickImage() async {
@@ -793,7 +902,6 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
         try {
           await _posSub?.cancel();
         } catch (_) {}
-        _tick?.cancel();
         Get.offAll(() => const RiderHomePage());
         return true;
       } else {
@@ -923,16 +1031,19 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                         FlutterMap(
                           mapController: _map,
                           options: MapOptions(
-                            initialCenter: _me ?? _pickup,
+                            initialCenter: _meVN.value ?? _pickup,
                             initialZoom: 16,
                             interactionOptions: InteractionOptions(
-                              flags:
-                                  InteractiveFlag.all & ~InteractiveFlag.rotate,
+                              flags: _followMe
+                                  ? InteractiveFlag.none
+                                  : (InteractiveFlag.all &
+                                        ~InteractiveFlag.rotate),
                             ),
                             onMapReady: () {
                               _mapReady = true;
                               if (_pendingCenter != null) {
                                 _map.move(_pendingCenter!, _pendingZoom);
+                                _lastRecenterPos = _pendingCenter;
                               }
                             },
                           ),
@@ -964,17 +1075,29 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                             ),
                             MarkerLayer(
                               markers: [
-                                if (_me != null)
-                                  Marker(
-                                    point: _me!,
-                                    width: 52,
-                                    height: 52,
-                                    child: const Icon(
-                                      Icons.motorcycle_rounded,
-                                      color: Colors.red,
-                                      size: 38,
-                                    ),
+                                Marker(
+                                  point: _meVN.value ?? _pickup,
+                                  width: 52,
+                                  height: 52,
+                                  child: ValueListenableBuilder<LatLng?>(
+                                    valueListenable: _meVN,
+                                    builder: (_, me, __) {
+                                      final angle =
+                                          ((_lastHeadingDegFromSensor ?? 0) %
+                                              360) *
+                                          pi /
+                                          180.0;
+                                      return Transform.rotate(
+                                        angle: angle,
+                                        child: const Icon(
+                                          Icons.motorcycle_rounded,
+                                          color: Colors.red,
+                                          size: 38,
+                                        ),
+                                      );
+                                    },
                                   ),
+                                ),
                                 Marker(
                                   point: _pickup,
                                   width: 48,
@@ -1025,70 +1148,188 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                           left: 12,
                           right: 12,
                           top: appBarTotalHeight(context) + 12,
-                          child: Column(
-                            children: [
-                              GlassCard(
-                                child: DefaultTextStyle(
-                                  style: GoogleFonts.notoSansThai(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.black.withValues(alpha: 0.75),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              'ไปจุดรับ: ${_mLabel(_distToPickup)}',
-                                            ),
-                                          ),
-                                          Expanded(
-                                            child: Text(
-                                              'ไปจุดส่ง: ${_mLabel(_distToDrop)}',
-                                              textAlign: TextAlign.right,
-                                            ),
-                                          ),
-                                        ],
+                          child: RepaintBoundary(
+                            child: Column(
+                              children: [
+                                GlassCard(
+                                  child: DefaultTextStyle(
+                                    style: GoogleFonts.notoSansThai(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.black.withValues(
+                                        alpha: 0.75,
                                       ),
-                                      if (_etaText != null ||
-                                          _routeDistanceMeters != null) ...[
-                                        const SizedBox(height: 6),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
                                         Row(
                                           children: [
                                             Expanded(
-                                              child: Text(
-                                                'เส้นทาง: ${_routeDistanceMeters == null ? '-' : _mLabel(_routeDistanceMeters)}',
-                                              ),
+                                              child:
+                                                  ValueListenableBuilder<
+                                                    double?
+                                                  >(
+                                                    valueListenable:
+                                                        _distPickupVN,
+                                                    builder: (_, v, __) => Text(
+                                                      'ไปจุดรับ: ${_mLabel(v)}',
+                                                    ),
+                                                  ),
                                             ),
                                             Expanded(
-                                              child: Text(
-                                                'เวลาโดยประมาณ: ${_etaText ?? '-'}',
-                                                textAlign: TextAlign.right,
-                                              ),
+                                              child:
+                                                  ValueListenableBuilder<
+                                                    double?
+                                                  >(
+                                                    valueListenable:
+                                                        _distDropVN,
+                                                    builder: (_, v, __) => Text(
+                                                      'ไปจุดส่ง: ${_mLabel(v)}',
+                                                      textAlign:
+                                                          TextAlign.right,
+                                                    ),
+                                                  ),
                                             ),
                                           ],
                                         ),
+                                        if (_etaText != null ||
+                                            _routeDistanceMeters != null) ...[
+                                          const SizedBox(height: 6),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  'เส้นทาง: ${_routeDistanceMeters == null ? '-' : _mLabel(_routeDistanceMeters)}',
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: Text(
+                                                  'เวลาโดยประมาณ: ${_etaText ?? '-'}',
+                                                  textAlign: TextAlign.right,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                GlassCard(
+                                  child: _JobMiniCard(
+                                    title: _shipmentTitle ?? 'งานจัดส่ง',
+                                    senderName: _senderName ?? '—',
+                                    senderPhone: _senderPhone ?? '—',
+                                    receiverName: _receiverName ?? '—',
+                                    receiverPhone: _receiverPhone ?? '—',
+                                    senderAvatarUrl: _senderAvatarUrl,
+                                    receiverAvatarUrl: _receiverAvatarUrl,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Spacer(),
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(50),
+                                        child: BackdropFilter(
+                                          filter: ImageFilter.blur(
+                                            sigmaX: 16,
+                                            sigmaY: 16,
+                                          ),
+                                          child: Container(
+                                            width: 72,
+                                            height: 72,
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(50),
+                                              border: Border.all(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.5,
+                                                ),
+                                                width: 1.5,
+                                              ),
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: ValueListenableBuilder<double?>(
+                                              valueListenable: _speedVN,
+                                              builder: (_, v, __) => Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    _speedNumber(v),
+                                                    style:
+                                                        GoogleFonts.notoSansThai(
+                                                          fontSize: 20,
+                                                          fontWeight:
+                                                              FontWeight.w900,
+                                                        ),
+                                                  ),
+                                                  Text(
+                                                    'km/h',
+                                                    style:
+                                                        GoogleFonts.notoSansThai(
+                                                          fontSize: 12.5,
+                                                          fontWeight:
+                                                              FontWeight.w800,
+                                                          color: Colors.black54,
+                                                        ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 10),
-                              GlassCard(
-                                child: _JobMiniCard(
-                                  title: _shipmentTitle ?? 'งานจัดส่ง',
-                                  senderName: _senderName ?? '—',
-                                  senderPhone: _senderPhone ?? '—',
-                                  receiverName: _receiverName ?? '—',
-                                  receiverPhone: _receiverPhone ?? '—',
-                                  senderAvatarUrl: _senderAvatarUrl,
-                                  receiverAvatarUrl: _receiverAvatarUrl,
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Spacer(),
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.white,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(
+                                                alpha: 0.15,
+                                              ),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: IconButton(
+                                          icon: Icon(
+                                            Icons.my_location_rounded,
+                                            color: _followMe
+                                                ? Colors.blueAccent
+                                                : Colors.black54,
+                                          ),
+                                          onPressed: _toggleFollow,
+                                          tooltip: 'ติดตามตำแหน่ง',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
 
@@ -1435,7 +1676,7 @@ class _JobMiniCard extends StatelessWidget {
         radius: 14,
         backgroundColor: Colors.grey.shade200,
         backgroundImage: NetworkImage(url!),
-        onBackgroundImageError: (_, _) {},
+        onBackgroundImageError: (_, __) {},
       );
     }
     return CircleAvatar(

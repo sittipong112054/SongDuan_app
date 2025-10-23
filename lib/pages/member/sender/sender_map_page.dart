@@ -45,7 +45,7 @@ class _SenderMapPageState extends State<SenderMapPage> {
     Color(0xFF16A085),
   ];
 
-  static const double _rerouteMetersThreshold = 30.0;
+  static const double _rerouteMetersThreshold = 15.0;
   final Map<int, DateTime> _lastRouteAt = {};
 
   @override
@@ -173,7 +173,7 @@ class _SenderMapPageState extends State<SenderMapPage> {
     }
 
     tick();
-    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => tick());
+    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) => tick());
   }
 
   Future<void> _fetchRiderLocation(int riderId) async {
@@ -224,7 +224,7 @@ class _SenderMapPageState extends State<SenderMapPage> {
 
     final lastAt = _lastRouteAt[sid];
     final n = now ?? DateTime.now();
-    if (lastAt != null && n.difference(lastAt).inMilliseconds < 4000) {
+    if (lastAt != null && n.difference(lastAt).inMilliseconds < 1500) {
       return;
     }
 
