@@ -12,7 +12,6 @@ import 'package:songduan_app/services/api_helper.dart';
 import 'package:songduan_app/services/session_service.dart';
 import 'package:path/path.dart' as p;
 
-// เพิ่ม: แผนที่/พิกัด
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -123,7 +122,6 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
             'label': (a['label'] ?? 'ที่อยู่').toString(),
             'address_text': (a['address_text'] ?? '').toString(),
             'is_default': a['is_default'] == 1 || a['is_default'] == true,
-            // เพิ่ม lat/lng เพื่อใช้ปักหมุด pickup บนแผนที่ (ถ้าแบ็กเอนด์ส่งมา)
             'lat': a['lat'],
             'lng': a['lng'],
           };
@@ -364,7 +362,6 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
     }
   }
 
-  // Helper: แปลง lat/lng จาก dynamic ให้เป็น LatLng ที่ปลอดภัย
   LatLng? _toLatLng(dynamic lat, dynamic lng) {
     double? la, lo;
     if (lat is num) la = lat.toDouble();
@@ -418,7 +415,9 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
           ] else if (_pickupError != null) ...[
             _ErrorTile(message: _pickupError!, onRetry: _fetchPickupAddresses),
           ] else if (_pickupAddresses.isEmpty) ...[
-            _HintTile(text: 'ยังไม่มีที่อยู่รับของ โปรดเพิ่มในโปรไฟล์ก่อน'),
+            const _HintTile(
+              text: 'ยังไม่มีที่อยู่รับของ โปรดเพิ่มในโปรไฟล์ก่อน',
+            ),
           ] else ...[
             _AddressPickList(
               addresses: _pickupAddresses,
@@ -463,11 +462,9 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
               onPickIndex: (i) => setState(() => _selectedAddressIndex = i),
             ),
 
-          // แผนที่พรีวิว: โชว์เมื่อผู้ใช้เลือกที่อยู่ผู้รับแล้ว
           if (_selectedAddressIndex != null && _results.isNotEmpty) ...[
             const SizedBox(height: 12),
             _MiniMapPreview(
-              // pickup: ใช้ที่อยู่ผู้ส่งที่เลือก ถ้ามีพิกัด
               pickup: () {
                 if (_selectedPickupIndex != null &&
                     _pickupAddresses.isNotEmpty) {
@@ -476,7 +473,6 @@ class _SenderCreatePageState extends State<SenderCreatePage> {
                 }
                 return null;
               }(),
-              // dropoff: ใช้ผลค้นหาที่เลือก (ต้องมี lat/lng)
               dropoff: () {
                 final m = _results[_selectedAddressIndex!];
                 return _toLatLng(m['lat'], m['lng']);
@@ -999,12 +995,6 @@ class _HintTile extends StatelessWidget {
   );
 }
 
-/// --- แผนที่พรีวิวตำแหน่งปลายทาง (และจุดรับ ถ้ามีพิกัด) ---
-/// เหตุผล:
-/// - ใช้ OSM ฟรี ไม่ต้อง API key → โหลดไวและไว้ใจได้สำหรับพรีวิว
-/// - ใช้ "เส้นตรง" เชื่อม pickup→dropoff เพื่อลดดีเลย์ตอนกรอกฟอร์ม
-/// - มี distance pill ให้ประเมินระยะทางคร่าว ๆ
-// แทนที่คลาส _MiniMapPreview เดิมทั้งหมดด้วยเวอร์ชันนี้
 class _MiniMapPreview extends StatefulWidget {
   final LatLng? pickup;
   final LatLng? dropoff;
@@ -1028,6 +1018,7 @@ class _MiniMapPreviewState extends State<_MiniMapPreview> {
   List<LatLng> _route = const [];
   bool _loading = false;
   String? _error;
+  bool _osrmOk = true; // เหตุผล: แยกสถานะบริการเพื่อควบคุมข้อความ/การคิดระยะ
 
   @override
   void initState() {
@@ -1038,7 +1029,6 @@ class _MiniMapPreviewState extends State<_MiniMapPreview> {
   @override
   void didUpdateWidget(covariant _MiniMapPreview old) {
     super.didUpdateWidget(old);
-    // ถ้าจุดเปลี่ยน → โหลดเส้นทางใหม่ + fit ใหม่
     if (old.pickup != widget.pickup || old.dropoff != widget.dropoff) {
       _refreshRouteAndFit();
     }
@@ -1049,28 +1039,32 @@ class _MiniMapPreviewState extends State<_MiniMapPreview> {
       _loading = true;
       _error = null;
       _route = const [];
+      _osrmOk = true;
     });
 
     try {
-      // โหลดเส้นทาง OSRM ถ้ามี pickup+dropoff ครบ
       if (widget.pickup != null && widget.dropoff != null) {
         final pts = await _fetchRouteOSRM(widget.pickup!, widget.dropoff!);
-        // ถ้า OSRM ล้มเหลว ใช้เส้นตรงช่วยให้ยังเห็นภาพรวม
-        _route = pts.isNotEmpty
-            ? pts
-            : <LatLng>[widget.pickup!, widget.dropoff!];
+
+        if (pts == null) {
+          _osrmOk = false;
+          _error = 'บริการเส้นทาง (OSRM) ไม่สามารถใช้งานได้ชั่วคราว';
+          _route = const [];
+        } else {
+          _route = pts;
+        }
       }
 
-      // fit กล้องครอบทุกจุดที่เรามี
       _fitAll();
     } catch (e) {
-      _error = '$e';
+      _osrmOk = false;
+      _error = 'บริการเส้นทาง (OSRM) ไม่สามารถใช้งานได้ชั่วคราว';
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<List<LatLng>> _fetchRouteOSRM(LatLng from, LatLng to) async {
+  Future<List<LatLng>?> _fetchRouteOSRM(LatLng from, LatLng to) async {
     try {
       final url = Uri.parse(
         'https://router.project-osrm.org/route/v1/driving/'
@@ -1078,7 +1072,7 @@ class _MiniMapPreviewState extends State<_MiniMapPreview> {
         '?overview=full&geometries=geojson',
       );
       final resp = await http.get(url).timeout(const Duration(seconds: 12));
-      if (resp.statusCode != 200) return const [];
+      if (resp.statusCode != 200) return null;
 
       final body = jsonDecode(utf8.decode(resp.bodyBytes));
       final routes = (body is Map && body['routes'] is List)
@@ -1093,7 +1087,6 @@ class _MiniMapPreviewState extends State<_MiniMapPreview> {
 
       final pts = <LatLng>[];
       for (final c in coords) {
-        // geojson เป็น [lng, lat]
         if (c is List && c.length >= 2) {
           final lng = (c[0] as num).toDouble();
           final lat = (c[1] as num).toDouble();
@@ -1102,12 +1095,11 @@ class _MiniMapPreviewState extends State<_MiniMapPreview> {
       }
       return pts;
     } catch (_) {
-      return const [];
+      return null;
     }
   }
 
   void _fitAll() {
-    // รวมทุกจุดสำคัญไว้เพื่อ fit กล้อง
     final pts = <LatLng>[
       if (widget.pickup != null) widget.pickup!,
       if (widget.dropoff != null) widget.dropoff!,
@@ -1115,7 +1107,6 @@ class _MiniMapPreviewState extends State<_MiniMapPreview> {
     ];
     if (pts.isEmpty) return;
 
-    // กันกล้องซูมแคบไปเมื่อมีจุดเดียว
     final bounds = LatLngBounds.fromPoints(pts);
     _map.fitCamera(
       CameraFit.bounds(
@@ -1195,7 +1186,6 @@ class _MiniMapPreviewState extends State<_MiniMapPreview> {
               ],
             ),
 
-            // แผงข้อมูลสรุป + ระยะทาง
             Positioned(
               left: 8,
               right: 8,
@@ -1228,6 +1218,7 @@ class _MiniMapPreviewState extends State<_MiniMapPreview> {
                         route: _route,
                         from: widget.pickup!,
                         to: widget.dropoff!,
+                        osrmAvailable: _osrmOk,
                       ),
                     ],
                   ],
@@ -1252,12 +1243,18 @@ class _MiniMapPreviewState extends State<_MiniMapPreview> {
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFE9E9),
+                    color: Colors.red.withOpacity(0.15), // โปร่งใส 15%
                     borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.red.withOpacity(0.25),
+                    ), // ขอบแดงจาง ๆ
                   ),
                   child: Text(
                     'เส้นทางไม่พร้อม: $_error',
-                    style: const TextStyle(color: Colors.red),
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
@@ -1269,31 +1266,33 @@ class _MiniMapPreviewState extends State<_MiniMapPreview> {
 }
 
 class _DistancePill extends StatelessWidget {
-  final LatLng? from; // เผื่อกรณีไม่มี pickup
-  final LatLng? to; // เผื่อกรณีไม่มี dropoff
-  final List<LatLng> route; // polyline จาก OSRM; ว่างได้
+  final LatLng? from;
+  final LatLng? to;
+  final List<LatLng> route;
+  final bool osrmAvailable;
 
-  const _DistancePill({required this.route, this.from, this.to});
+  const _DistancePill({
+    required this.route,
+    this.from,
+    this.to,
+    this.osrmAvailable = true,
+  });
 
-  // คำนวณระยะทางตาม polyline (เมตร). ถ้า polyline สั้นเกินไป จะ fallback เป็นเส้นตรงจาก from→to
   double _computeDistanceMeters() {
     final dist = const Distance();
 
-    // 1) ถ้ามีเส้นทางจาก OSRM: รวมระยะทุก segment
     if (route.length >= 2) {
       double sum = 0;
       for (int i = 0; i < route.length - 1; i++) {
-        sum += dist(route[i], route[i + 1]); // default เป็นเมตร
+        sum += dist(route[i], route[i + 1]);
       }
       return sum;
     }
 
-    // 2) ไม่มี polyline: ใช้เส้นตรงระหว่างจุด
     if (from != null && to != null) {
-      return dist(from!, to!); // เมตร
+      return dist(from!, to!);
     }
 
-    // 3) ไม่มีข้อมูลพอ
     return 0;
   }
 
@@ -1308,8 +1307,9 @@ class _DistancePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final meters = _computeDistanceMeters();
-    final text = _formatDistance(meters);
+    final String text = osrmAvailable
+        ? _formatDistance(_computeDistanceMeters())
+        : 'ไม่สามารถใช้งานได้';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

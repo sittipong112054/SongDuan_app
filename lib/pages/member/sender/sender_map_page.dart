@@ -9,7 +9,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:songduan_app/services/api_helper.dart';
-
 import 'package:songduan_app/services/session_service.dart';
 import 'package:songduan_app/widgets/delivery_status_card.dart';
 import 'package:songduan_app/widgets/order_card.dart';
@@ -30,16 +29,22 @@ class _SenderMapPageState extends State<SenderMapPage> {
   String? _error;
 
   List<_Incoming> _items = [];
-
   final Map<int, LatLng> _riderPos = {};
   final Map<int, List<LatLng>> _routes = {};
   final Map<int, LatLng> _lastRoutedFrom = {};
   final Map<int, double> _riderHeadingDeg = {};
   final Map<int, double> _riderSpeedMps = {};
   Timer? _pollTimer;
+
   Timer? _shipTimer;
+  static const _shipRefreshSec = 10;
+
+  final Map<int, DateTime> _deliveredUntil = {};
+  final Map<int, String> _lastStatusById = {};
 
   int? _focusedIndex;
+
+  bool _bootstrappedStatuses = false;
 
   static const _palette = <Color>[
     Color(0xFF2C7BE5),
@@ -52,14 +57,65 @@ class _SenderMapPageState extends State<SenderMapPage> {
 
   static const double _rerouteMetersThreshold = 15.0;
   final Map<int, DateTime> _lastRouteAt = {};
+  final Distance _dist = const Distance();
 
-  static const int _shipRefreshSec = 20;
+  bool _deliveredWindowActive(int id) {
+    final until = _deliveredUntil[id];
+    return until != null && DateTime.now().isBefore(until);
+  }
 
-  static const double _nearMeters = 20.0;
-  static const double _nearExitMeters = 35.0;
-  static const int _nearCooldownSec = 25;
-  final Map<int, bool> _isNearTarget = {};
-  final Map<int, DateTime> _lastNearRefreshAt = {};
+  void _maybeStartDeliveredWindow(int id, String currentStatus) {
+    final prev = _lastStatusById[id];
+
+    final isTransitionToDelivered =
+        prev != null && prev != 'DELIVERED' && currentStatus == 'DELIVERED';
+
+    if (_bootstrappedStatuses &&
+        isTransitionToDelivered &&
+        !_deliveredWindowActive(id)) {
+      _deliveredUntil[id] = DateTime.now().add(const Duration(seconds: 10));
+    }
+
+    _lastStatusById[id] = currentStatus;
+  }
+
+  double _polylineMeters(List<LatLng> pts) {
+    if (pts.length < 2) return 0;
+    double sum = 0;
+    for (int i = 0; i < pts.length - 1; i++) {
+      sum += _dist(pts[i], pts[i + 1]);
+    }
+    return sum;
+  }
+
+  double _distanceMeters(LatLng a, LatLng b) =>
+      _dist.as(LengthUnit.Meter, a, b);
+
+  double? _currentLegMetersFor(_Incoming it) {
+    final rp = it.riderId != null ? _riderPos[it.riderId!] : null;
+    if (rp == null) return null;
+    final target = switch (it.status) {
+      'RIDER_ACCEPTED' => it.pickupLatLng,
+      'PICKED_UP_EN_ROUTE' => it.dropoffLatLng,
+      _ => null,
+    };
+    if (target == null) return null;
+
+    final routePts = _routes[it.shipmentId];
+    if (routePts != null && routePts.length >= 2) {
+      return _polylineMeters(routePts);
+    }
+    return _dist(rp, target);
+  }
+
+  String _fmtMeters(double m) {
+    if (m < 1) return '0 m';
+    if (m < 1000) return '${m.toStringAsFixed(0)} m';
+    final km = m / 1000.0;
+    return km < 10
+        ? '${km.toStringAsFixed(2)} km'
+        : '${km.toStringAsFixed(1)} km';
+  }
 
   @override
   void initState() {
@@ -82,7 +138,6 @@ class _SenderMapPageState extends State<SenderMapPage> {
     try {
       await _fetchShipments();
       _startPollingRiders();
-      _startSoftRefresh();
     } catch (e) {
       setState(() => _error = '$e');
     } finally {
@@ -111,10 +166,15 @@ class _SenderMapPageState extends State<SenderMapPage> {
 
     final parsed = <_Incoming>[];
     for (final r in list) {
+      final id = (r['id'] as num).toInt();
       final status = (r['status'] ?? '').toString();
-      if (status != 'RIDER_ACCEPTED' && status != 'PICKED_UP_EN_ROUTE') {
-        continue;
-      }
+
+      _maybeStartDeliveredWindow(id, status);
+
+      final allow =
+          (status == 'RIDER_ACCEPTED' || status == 'PICKED_UP_EN_ROUTE') ||
+          (status == 'DELIVERED' && _deliveredWindowActive(id));
+      if (!allow) continue;
 
       final sender = r['sender'] as Map<String, dynamic>?;
       final pickup = r['pickup'] as Map<String, dynamic>?;
@@ -128,7 +188,7 @@ class _SenderMapPageState extends State<SenderMapPage> {
 
       parsed.add(
         _Incoming(
-          shipmentId: (r['id'] as num).toInt(),
+          shipmentId: id,
           title: (r['title'] ?? 'Incoming Delivery').toString(),
           status: status,
           senderAvatar: sender?['avatar_path'] as String?,
@@ -156,46 +216,53 @@ class _SenderMapPageState extends State<SenderMapPage> {
         .forEach(_routes.remove);
 
     _fitToAll();
+    _bootstrappedStatuses = true;
   }
 
   Future<void> _refreshShipmentsSoft() async {
     final me = Get.find<SessionService>().currentUserId;
     if (me == null) return;
-
     final uri = Uri.parse(
       '${widget.baseUrl}/shipments?sender_id=$me&pageSize=100',
     );
-    try {
-      final resp = await http
-          .get(uri, headers: await authHeaders())
-          .timeout(const Duration(seconds: 12));
-      handleAuthErrorIfAny(resp);
-      if (resp.statusCode != 200) return;
+    final resp = await http
+        .get(uri, headers: await authHeaders())
+        .timeout(const Duration(seconds: 15));
+    handleAuthErrorIfAny(resp);
+    if (resp.statusCode != 200) return;
 
-      final json =
-          jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
-      final list = (json['data'] as List? ?? []).whereType<Map>().toList();
+    final json =
+        jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+    final list = (json['data'] as List? ?? []).whereType<Map>().toList();
 
-      final latestById = <int, _Incoming>{};
-      for (final r in list) {
-        final status = (r['status'] ?? '').toString();
-        if (status != 'RIDER_ACCEPTED' && status != 'PICKED_UP_EN_ROUTE') {
-          continue;
-        }
-        final pickup = r['pickup'] as Map<String, dynamic>?;
-        final dropoff = r['dropoff'] as Map<String, dynamic>?;
-        final assignment = r['assignment'] as Map<String, dynamic>?;
-        final rider =
-            assignment?['rider'] as Map<String, dynamic>? ??
-            r['rider'] as Map<String, dynamic>?;
-        final riderId = (assignment?['rider_id'] ?? r['rider_id']);
-        final riderName = (rider?['name'] ?? 'ไรเดอร์').toString();
+    final fresh = <_Incoming>[];
+    for (final r in list) {
+      final id = (r['id'] as num).toInt();
+      final status = (r['status'] ?? '').toString();
 
-        final incoming = _Incoming(
-          shipmentId: (r['id'] as num).toInt(),
+      _maybeStartDeliveredWindow(id, status);
+
+      final allow =
+          (status == 'RIDER_ACCEPTED' || status == 'PICKED_UP_EN_ROUTE') ||
+          (status == 'DELIVERED' && _deliveredWindowActive(id));
+      if (!allow) continue;
+
+      final sender = r['sender'] as Map<String, dynamic>?;
+      final pickup = r['pickup'] as Map<String, dynamic>?;
+      final dropoff = r['dropoff'] as Map<String, dynamic>?;
+      final assignment = r['assignment'] as Map<String, dynamic>?;
+      final rider =
+          assignment?['rider'] as Map<String, dynamic>? ??
+          r['rider'] as Map<String, dynamic>?;
+      final riderId = (assignment?['rider_id'] ?? r['rider_id']);
+      final riderName = (rider?['name'] ?? 'ไรเดอร์').toString();
+
+      fresh.add(
+        _Incoming(
+          shipmentId: id,
           title: (r['title'] ?? 'Incoming Delivery').toString(),
           status: status,
-          senderAvatar: (r['sender'] as Map?)?['avatar_path'] as String?,
+          senderAvatar: sender?['avatar_path'] as String?,
           riderName: riderName,
           pickupText: (pickup?['label'] ?? pickup?['address_text'] ?? 'จุดรับ')
               .toString(),
@@ -206,58 +273,60 @@ class _SenderMapPageState extends State<SenderMapPage> {
           dropoffLatLng: _toLatLng(dropoff),
           riderId: riderId is num ? riderId.toInt() : null,
           cover: r['cover_file_path'] as String?,
-        );
-        latestById[incoming.shipmentId] = incoming;
-      }
+        ),
+      );
+    }
+    fresh.sort((a, b) => b.shipmentId.compareTo(a.shipmentId));
 
-      var changed = false;
-      final next = <_Incoming>[];
+    if (!mounted) return;
 
-      for (final old in _items) {
-        final fresh = latestById[old.shipmentId];
-        if (fresh == null) {
-          next.add(old);
-          continue;
-        }
-        next.add(fresh);
-        if (fresh.status != old.status ||
-            fresh.riderId != old.riderId ||
-            fresh.pickupLatLng != old.pickupLatLng ||
-            fresh.dropoffLatLng != old.dropoffLatLng) {
-          changed = true;
-        }
-      }
+    final oldById = {for (final it in _items) it.shipmentId: it};
+    final newIds = fresh.map((e) => e.shipmentId).toSet();
 
-      for (final entry in latestById.entries) {
-        final exist = _items.any((e) => e.shipmentId == entry.key);
-        if (!exist) {
-          next.add(entry.value);
-          changed = true;
-        }
-      }
+    setState(() {
+      _items = fresh;
+      _routes.keys
+          .where((k) => !newIds.contains(k))
+          .toList()
+          .forEach(_routes.remove);
 
-      if (changed) {
-        next.sort((a, b) => b.shipmentId.compareTo(a.shipmentId));
-        setState(() => _items = next);
-        if (_focusedIndex != null && _focusedIndex! < _items.length) {
-          _fitShipment(_focusedIndex!);
+      if (_focusedIndex != null) {
+        if (oldById.isEmpty || _focusedIndex! >= oldById.length) {
+          _focusedIndex = null;
         } else {
-          _fitToAll();
+          final oldFocused = oldById.values.elementAt(_focusedIndex!);
+          final idxNew = _items.indexWhere(
+            (e) => e.shipmentId == oldFocused.shipmentId,
+          );
+          _focusedIndex = idxNew >= 0 ? idxNew : null;
         }
       }
-    } catch (_) {}
-  }
-
-  void _startSoftRefresh() {
-    _shipTimer?.cancel();
-    _shipTimer = Timer.periodic(
-      const Duration(seconds: _shipRefreshSec),
-      (_) async => _refreshShipmentsSoft(),
-    );
+    });
   }
 
   void _startPollingRiders() {
     _pollTimer?.cancel();
+    _shipTimer?.cancel();
+
+    _shipTimer = Timer.periodic(Duration(seconds: _shipRefreshSec), (_) async {
+      try {
+        final wasEmpty = _items.isEmpty;
+
+        await _refreshShipmentsSoft();
+        if (!mounted) return;
+
+        if (wasEmpty && _items.isNotEmpty) {
+          _startPollingRiders();
+          return;
+        }
+
+        if (_focusedIndex != null && _focusedIndex! < _items.length) {
+          _fitShipment(_focusedIndex!);
+        }
+        _pruneDelivered();
+      } catch (_) {}
+    });
+
     if (_items.isEmpty) return;
 
     Future<void> tick() async {
@@ -274,8 +343,6 @@ class _SenderMapPageState extends State<SenderMapPage> {
           await _ensureRouteFor(i, now: now);
         }
 
-        await _maybeRefreshOnProximity();
-
         if (!mounted) return;
         setState(() {});
 
@@ -284,11 +351,37 @@ class _SenderMapPageState extends State<SenderMapPage> {
         } else {
           _fitToAll();
         }
+
+        _pruneDelivered();
       } catch (_) {}
     }
 
     tick();
-    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) => tick());
+    _pollTimer = Timer.periodic(const Duration(seconds: 1), (_) => tick());
+  }
+
+  void _pruneDelivered() {
+    final now = DateTime.now();
+    final expired = _deliveredUntil.entries
+        .where((e) => e.value.isBefore(now))
+        .map((e) => e.key)
+        .toList();
+    if (expired.isEmpty) return;
+
+    setState(() {
+      _items.removeWhere(
+        (it) => it.status == 'DELIVERED' && expired.contains(it.shipmentId),
+      );
+      for (final id in expired) {
+        _deliveredUntil.remove(id);
+        _routes.remove(id);
+        _lastRoutedFrom.remove(id);
+        _lastRouteAt.remove(id);
+      }
+      if (_focusedIndex != null && _focusedIndex! >= _items.length) {
+        _focusedIndex = null;
+      }
+    });
   }
 
   Future<void> _fetchRiderLocation(int riderId) async {
@@ -339,6 +432,8 @@ class _SenderMapPageState extends State<SenderMapPage> {
       target = it.pickupLatLng;
     } else if (it.status == 'PICKED_UP_EN_ROUTE') {
       target = it.dropoffLatLng;
+    } else if (it.status == 'DELIVERED') {
+      return;
     } else {
       return;
     }
@@ -348,7 +443,7 @@ class _SenderMapPageState extends State<SenderMapPage> {
 
     final lastAt = _lastRouteAt[sid];
     final n = now ?? DateTime.now();
-    if (lastAt != null && n.difference(lastAt).inMilliseconds < 4000) {
+    if (lastAt != null && n.difference(lastAt).inMilliseconds < 1500) {
       return;
     }
 
@@ -397,49 +492,9 @@ class _SenderMapPageState extends State<SenderMapPage> {
     }
   }
 
-  Future<void> _maybeRefreshOnProximity() async {
-    final now = DateTime.now();
-
-    for (var i = 0; i < _items.length; i++) {
-      final it = _items[i];
-      if (it.riderId == null) continue;
-
-      final rp = _riderPos[it.riderId!];
-      if (rp == null) continue;
-
-      final LatLng? target = switch (it.status) {
-        'RIDER_ACCEPTED' => it.pickupLatLng,
-        'PICKED_UP_EN_ROUTE' => it.dropoffLatLng,
-        _ => null,
-      };
-      if (target == null) continue;
-
-      final dist = _distanceMeters(rp, target);
-
-      final wasNear = _isNearTarget[it.shipmentId] ?? false;
-      final enterNear = !wasNear && dist <= _nearMeters;
-      final exitNear = wasNear && dist >= _nearExitMeters;
-
-      if (enterNear) {
-        final last = _lastNearRefreshAt[it.shipmentId];
-        final coolOk =
-            last == null || now.difference(last).inSeconds >= _nearCooldownSec;
-
-        if (coolOk) {
-          await _refreshShipmentsSoft();
-          _lastNearRefreshAt[it.shipmentId] = now;
-        }
-        _isNearTarget[it.shipmentId] = true;
-      } else if (exitNear) {
-        _isNearTarget[it.shipmentId] = false;
-      }
-    }
-  }
-
   void _fitToAll() {
     if (!_mapReady) return;
     final coords = <LatLng>[];
-
     for (final it in _items) {
       if (it.pickupLatLng != null) coords.add(it.pickupLatLng!);
       if (it.dropoffLatLng != null) coords.add(it.dropoffLatLng!);
@@ -474,11 +529,6 @@ class _SenderMapPageState extends State<SenderMapPage> {
     _map.fitCamera(fit);
   }
 
-  double _distanceMeters(LatLng a, LatLng b) {
-    final d = const Distance();
-    return d.as(LengthUnit.Meter, a, b);
-  }
-
   String _short(String s, {int max = 14}) {
     final t = s.trim();
     if (t.length <= max) return t;
@@ -486,12 +536,11 @@ class _SenderMapPageState extends State<SenderMapPage> {
   }
 
   Color _routeColorFor(String status, Color base) {
-    if (status == 'RIDER_ACCEPTED') {
-      return Colors.blue.withValues(alpha: 0.18);
-    }
+    if (status == 'RIDER_ACCEPTED') return Colors.blue.withValues(alpha: 0.18);
     if (status == 'PICKED_UP_EN_ROUTE') {
       return Colors.green.withValues(alpha: 0.18);
     }
+    if (status == 'DELIVERED') return Colors.green.withValues(alpha: 0.35);
     return base.withValues(alpha: 0.7);
   }
 
@@ -563,18 +612,54 @@ class _SenderMapPageState extends State<SenderMapPage> {
 
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: DeliveryStatusCard(
-                    number: i + 1,
-                    badgeColor: color,
-                    title: it.title,
-                    by: it.riderName,
-                    from: it.pickupText,
-                    to: it.dropoffText,
-                    status: status,
-                    onTap: () {
-                      setState(() => _focusedIndex = i);
-                      _fitShipment(i);
-                    },
+                  child: Stack(
+                    children: [
+                      DeliveryStatusCard(
+                        number: i + 1,
+                        badgeColor: color,
+                        title: it.title,
+                        by: it.riderName,
+                        from: it.pickupText,
+                        to: it.dropoffText,
+                        status: status,
+                        onTap: () {
+                          setState(() => _focusedIndex = i);
+                          _fitShipment(i);
+                        },
+                      ),
+                      if (it.status == 'DELIVERED' &&
+                          _deliveredWindowActive(it.shipmentId))
+                        Positioned(
+                          right: 10,
+                          top: 10,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 250),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF16A34A),
+                              borderRadius: BorderRadius.circular(999),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.15),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: const Text(
+                              'DELIVERED',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 );
               }),
@@ -606,10 +691,14 @@ class _SenderMapPageState extends State<SenderMapPage> {
             final i = e.$1;
             final it = e.$2;
             final color = _palette[i % _palette.length];
+
+            final meters = _currentLegMetersFor(it);
+            final distText = meters == null ? '' : ' · ${_fmtMeters(meters)}';
+
             return Padding(
               padding: const EdgeInsets.only(right: 6),
               child: _LegendChip(
-                label: '#${i + 1} ${_short(it.title)}',
+                label: '#${i + 1} ${_short(it.title)}$distText',
                 color: color,
                 selected: _focusedIndex == i,
                 onTap: () {
@@ -698,26 +787,34 @@ class _SenderMapPageState extends State<SenderMapPage> {
         markers.add(
           Marker(
             point: it.pickupLatLng!,
-            width: 40,
-            height: 40,
-            child: const Icon(
-              Icons.store_mall_directory_rounded,
-              color: Colors.blue,
-              size: 28,
+            width: 44,
+            height: 44,
+            child: _NumberedMarker(
+              icon: Icons.store_mall_directory_rounded,
+              iconColor: Colors.blue,
+              number: i + 1,
+              badgeColor: color, // ใช้สีเดียวกับพาเลตงานเพื่อคุมเอกลักษณ์
             ),
           ),
         );
       }
+
       if (it.dropoffLatLng != null) {
         markers.add(
           Marker(
             point: it.dropoffLatLng!,
-            width: 40,
-            height: 40,
-            child: const Icon(Icons.home_filled, color: Colors.green, size: 28),
+            width: 44,
+            height: 44,
+            child: _NumberedMarker(
+              icon: Icons.home_filled,
+              iconColor: Colors.green,
+              number: i + 1,
+              badgeColor: color,
+            ),
           ),
         );
       }
+
       if (rp != null) {
         final heading = _riderHeadingDeg[it.riderId!] ?? 0.0;
         final ahead = _aheadPoint(rp, heading, 25.0);
@@ -729,8 +826,6 @@ class _SenderMapPageState extends State<SenderMapPage> {
           ),
         );
 
-        final angleRad = (heading % 360) * (math.pi / 180.0);
-
         markers.add(
           Marker(
             point: rp,
@@ -740,33 +835,12 @@ class _SenderMapPageState extends State<SenderMapPage> {
               alignment: Alignment.center,
               children: [
                 Transform.rotate(
-                  angle: angleRad,
-                  child: const Icon(
-                    Icons.navigation_rounded,
-                    color: Colors.red,
-                    size: 26,
-                  ),
-                ),
-                Positioned(
-                  right: -2,
-                  top: -2,
-                  child: Container(
-                    width: 20,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '${i + 1}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
+                  angle: (heading % 360) * (math.pi / 180.0),
+                  child: _NumberedMarker(
+                    icon: Icons.navigation_rounded,
+                    iconColor: Colors.red,
+                    number: i + 1,
+                    badgeColor: color,
                   ),
                 ),
               ],
@@ -923,6 +997,55 @@ class _ErrorTile extends StatelessWidget {
           TextButton(onPressed: onRetry, child: const Text('ลองอีกครั้ง')),
         ],
       ),
+    );
+  }
+}
+
+class _NumberedMarker extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final int number;
+  final Color badgeColor;
+
+  const _NumberedMarker({
+    required this.icon,
+    required this.iconColor,
+    required this.number,
+    required this.badgeColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // ใช้ Stack เพื่อ "คงสัญลักษณ์หลัก" และ "ซ้อนเลขงาน" ที่มุมขวาบน
+    // เหตุผล: รูปแบบเดียวกับหมุดไรเดอร์ ช่วยสร้าง mapping ทางสายตาแบบสม่ำเสมอ
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        Icon(icon, color: iconColor, size: 28),
+        Positioned(
+          right: -2,
+          top: -2,
+          child: Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              color: badgeColor,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              '$number',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

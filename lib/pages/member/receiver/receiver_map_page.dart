@@ -9,7 +9,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:songduan_app/services/api_helper.dart';
-
 import 'package:songduan_app/services/session_service.dart';
 import 'package:songduan_app/widgets/delivery_status_card.dart';
 import 'package:songduan_app/widgets/order_card.dart';
@@ -38,9 +37,14 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
   Timer? _pollTimer;
 
   Timer? _shipTimer;
-  static const _shipRefreshSec = 20;
+  static const _shipRefreshSec = 10;
+
+  final Map<int, DateTime> _deliveredUntil = {};
+  final Map<int, String> _lastStatusById = {};
 
   int? _focusedIndex;
+
+  bool _bootstrappedStatuses = false;
 
   static const _palette = <Color>[
     Color(0xFF2C7BE5),
@@ -53,8 +57,27 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
 
   static const double _rerouteMetersThreshold = 30.0;
   final Map<int, DateTime> _lastRouteAt = {};
-
   final Distance _dist = const Distance();
+
+  bool _deliveredWindowActive(int id) {
+    final until = _deliveredUntil[id];
+    return until != null && DateTime.now().isBefore(until);
+  }
+
+  void _maybeStartDeliveredWindow(int id, String currentStatus) {
+    final prev = _lastStatusById[id];
+
+    final isTransitionToDelivered =
+        prev != null && prev != 'DELIVERED' && currentStatus == 'DELIVERED';
+
+    if (_bootstrappedStatuses &&
+        isTransitionToDelivered &&
+        !_deliveredWindowActive(id)) {
+      _deliveredUntil[id] = DateTime.now().add(const Duration(seconds: 10));
+    }
+
+    _lastStatusById[id] = currentStatus;
+  }
 
   double _polylineMeters(List<LatLng> pts) {
     if (pts.length < 2) return 0;
@@ -65,14 +88,12 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
     return sum;
   }
 
-  double _distanceMeters(LatLng a, LatLng b) {
-    return _dist.as(LengthUnit.Meter, a, b);
-  }
+  double _distanceMeters(LatLng a, LatLng b) =>
+      _dist.as(LengthUnit.Meter, a, b);
 
   double? _currentLegMetersFor(_Incoming it) {
     final rp = it.riderId != null ? _riderPos[it.riderId!] : null;
     if (rp == null) return null;
-
     final target = switch (it.status) {
       'RIDER_ACCEPTED' => it.pickupLatLng,
       'PICKED_UP_EN_ROUTE' => it.dropoffLatLng,
@@ -81,9 +102,8 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
     if (target == null) return null;
 
     final routePts = _routes[it.shipmentId];
-    if (routePts != null && routePts.length >= 2) {
+    if (routePts != null && routePts.length >= 2)
       return _polylineMeters(routePts);
-    }
     return _dist(rp, target);
   }
 
@@ -94,61 +114,6 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
     return km < 10
         ? '${km.toStringAsFixed(2)} km'
         : '${km.toStringAsFixed(1)} km';
-  }
-
-  final Map<int, bool> _isNearTarget = {};
-  final Map<int, DateTime> _lastNearRefreshAt = {};
-  static const _nearEnterMeters = 20.0;
-  static const _nearExitMeters = 35.0;
-  static const _nearCooldownSec = 25;
-
-  Future<void> _maybeRefreshOnProximity() async {
-    if (_items.isEmpty) return;
-    bool needRefresh = false;
-
-    for (final it in _items) {
-      final rid = it.riderId;
-      if (rid == null) continue;
-      final rp = _riderPos[rid];
-      if (rp == null) continue;
-
-      final target = switch (it.status) {
-        'RIDER_ACCEPTED' => it.pickupLatLng,
-        'PICKED_UP_EN_ROUTE' => it.dropoffLatLng,
-        _ => null,
-      };
-      if (target == null) continue;
-
-      final d = _distanceMeters(rp, target);
-      final wasNear = _isNearTarget[it.shipmentId] ?? false;
-
-      final enterNear = !wasNear && d <= _nearEnterMeters;
-      final exitNear = wasNear && d >= _nearExitMeters;
-
-      if (enterNear) {
-        final last = _lastNearRefreshAt[it.shipmentId];
-        final coolOk =
-            last == null ||
-            DateTime.now().difference(last).inSeconds >= _nearCooldownSec;
-        if (coolOk) {
-          needRefresh = true;
-          _lastNearRefreshAt[it.shipmentId] = DateTime.now();
-        }
-        _isNearTarget[it.shipmentId] = true;
-      } else if (exitNear) {
-        _isNearTarget[it.shipmentId] = false;
-      }
-    }
-
-    if (needRefresh) {
-      await _refreshShipmentsSoft();
-      if (!mounted) return;
-      if (_focusedIndex != null && _focusedIndex! < _items.length) {
-        _fitShipment(_focusedIndex!);
-      } else {
-        _fitToAll();
-      }
-    }
   }
 
   @override
@@ -200,10 +165,15 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
 
     final parsed = <_Incoming>[];
     for (final r in list) {
+      final id = (r['id'] as num).toInt();
       final status = (r['status'] ?? '').toString();
-      if (status != 'RIDER_ACCEPTED' && status != 'PICKED_UP_EN_ROUTE') {
-        continue;
-      }
+
+      _maybeStartDeliveredWindow(id, status);
+
+      final allow =
+          (status == 'RIDER_ACCEPTED' || status == 'PICKED_UP_EN_ROUTE') ||
+          (status == 'DELIVERED' && _deliveredWindowActive(id));
+      if (!allow) continue;
 
       final sender = r['sender'] as Map<String, dynamic>?;
       final pickup = r['pickup'] as Map<String, dynamic>?;
@@ -217,7 +187,7 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
 
       parsed.add(
         _Incoming(
-          shipmentId: (r['id'] as num).toInt(),
+          shipmentId: id,
           title: (r['title'] ?? 'Incoming Delivery').toString(),
           status: status,
           senderAvatar: sender?['avatar_path'] as String?,
@@ -245,6 +215,7 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
         .forEach(_routes.remove);
 
     _fitToAll();
+    _bootstrappedStatuses = true;
   }
 
   Future<void> _refreshShipmentsSoft() async {
@@ -265,10 +236,15 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
 
     final fresh = <_Incoming>[];
     for (final r in list) {
+      final id = (r['id'] as num).toInt();
       final status = (r['status'] ?? '').toString();
-      if (status != 'RIDER_ACCEPTED' && status != 'PICKED_UP_EN_ROUTE') {
-        continue;
-      }
+
+      _maybeStartDeliveredWindow(id, status);
+
+      final allow =
+          (status == 'RIDER_ACCEPTED' || status == 'PICKED_UP_EN_ROUTE') ||
+          (status == 'DELIVERED' && _deliveredWindowActive(id));
+      if (!allow) continue;
 
       final sender = r['sender'] as Map<String, dynamic>?;
       final pickup = r['pickup'] as Map<String, dynamic>?;
@@ -282,7 +258,7 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
 
       fresh.add(
         _Incoming(
-          shipmentId: (r['id'] as num).toInt(),
+          shipmentId: id,
           title: (r['title'] ?? 'Incoming Delivery').toString(),
           status: status,
           senderAvatar: sender?['avatar_path'] as String?,
@@ -331,6 +307,25 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
     _pollTimer?.cancel();
     _shipTimer?.cancel();
 
+    _shipTimer = Timer.periodic(Duration(seconds: _shipRefreshSec), (_) async {
+      try {
+        final wasEmpty = _items.isEmpty;
+
+        await _refreshShipmentsSoft();
+        if (!mounted) return;
+
+        if (wasEmpty && _items.isNotEmpty) {
+          _startPollingRiders();
+          return;
+        }
+
+        if (_focusedIndex != null && _focusedIndex! < _items.length) {
+          _fitShipment(_focusedIndex!);
+        }
+        _pruneDelivered();
+      } catch (_) {}
+    });
+
     if (_items.isEmpty) return;
 
     Future<void> tick() async {
@@ -347,8 +342,6 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
           await _ensureRouteFor(i, now: now);
         }
 
-        await _maybeRefreshOnProximity();
-
         if (!mounted) return;
         setState(() {});
 
@@ -357,20 +350,36 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
         } else {
           _fitToAll();
         }
+
+        _pruneDelivered();
       } catch (_) {}
     }
 
     tick();
-    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) => tick());
+    _pollTimer = Timer.periodic(const Duration(seconds: 1), (_) => tick());
+  }
 
-    _shipTimer = Timer.periodic(Duration(seconds: _shipRefreshSec), (_) async {
-      try {
-        await _refreshShipmentsSoft();
-        if (!mounted) return;
-        if (_focusedIndex != null && _focusedIndex! < _items.length) {
-          _fitShipment(_focusedIndex!);
-        }
-      } catch (_) {}
+  void _pruneDelivered() {
+    final now = DateTime.now();
+    final expired = _deliveredUntil.entries
+        .where((e) => e.value.isBefore(now))
+        .map((e) => e.key)
+        .toList();
+    if (expired.isEmpty) return;
+
+    setState(() {
+      _items.removeWhere(
+        (it) => it.status == 'DELIVERED' && expired.contains(it.shipmentId),
+      );
+      for (final id in expired) {
+        _deliveredUntil.remove(id);
+        _routes.remove(id);
+        _lastRoutedFrom.remove(id);
+        _lastRouteAt.remove(id);
+      }
+      if (_focusedIndex != null && _focusedIndex! >= _items.length) {
+        _focusedIndex = null;
+      }
     });
   }
 
@@ -422,6 +431,8 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
       target = it.pickupLatLng;
     } else if (it.status == 'PICKED_UP_EN_ROUTE') {
       target = it.dropoffLatLng;
+    } else if (it.status == 'DELIVERED') {
+      return;
     } else {
       return;
     }
@@ -483,7 +494,6 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
   void _fitToAll() {
     if (!_mapReady) return;
     final coords = <LatLng>[];
-
     for (final it in _items) {
       if (it.pickupLatLng != null) coords.add(it.pickupLatLng!);
       if (it.dropoffLatLng != null) coords.add(it.dropoffLatLng!);
@@ -525,12 +535,11 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
   }
 
   Color _routeColorFor(String status, Color base) {
-    if (status == 'RIDER_ACCEPTED') {
-      return Colors.blue.withValues(alpha: 0.18);
-    }
+    if (status == 'RIDER_ACCEPTED') return Colors.blue.withValues(alpha: 0.18);
     if (status == 'PICKED_UP_EN_ROUTE') {
       return Colors.green.withValues(alpha: 0.18);
     }
+    if (status == 'DELIVERED') return Colors.green.withValues(alpha: 0.35);
     return base.withValues(alpha: 0.7);
   }
 
@@ -599,21 +608,56 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
                   _ => OrderStatus.waitingPickup,
                 };
                 final color = _palette[i % _palette.length];
-
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: DeliveryStatusCard(
-                    number: i + 1,
-                    badgeColor: color,
-                    title: it.title,
-                    by: it.riderName,
-                    from: it.pickupText,
-                    to: it.dropoffText,
-                    status: status,
-                    onTap: () {
-                      setState(() => _focusedIndex = i);
-                      _fitShipment(i);
-                    },
+                  child: Stack(
+                    children: [
+                      DeliveryStatusCard(
+                        number: i + 1,
+                        badgeColor: color,
+                        title: it.title,
+                        by: it.riderName,
+                        from: it.pickupText,
+                        to: it.dropoffText,
+                        status: status,
+                        onTap: () {
+                          setState(() => _focusedIndex = i);
+                          _fitShipment(i);
+                        },
+                      ),
+                      if (it.status == 'DELIVERED' &&
+                          _deliveredWindowActive(it.shipmentId))
+                        Positioned(
+                          right: 10,
+                          top: 10,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 250),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF16A34A),
+                              borderRadius: BorderRadius.circular(999),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.15),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: const Text(
+                              'DELIVERED',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 );
               }),
@@ -741,26 +785,34 @@ class _ReceiverMapPageState extends State<ReceiverMapPage> {
         markers.add(
           Marker(
             point: it.pickupLatLng!,
-            width: 40,
-            height: 40,
-            child: const Icon(
-              Icons.store_mall_directory_rounded,
-              color: Colors.blue,
-              size: 28,
+            width: 44,
+            height: 44,
+            child: _NumberedMarker(
+              icon: Icons.store_mall_directory_rounded,
+              iconColor: Colors.blue,
+              number: i + 1,
+              badgeColor: color, // ใช้สีเดียวกับพาเลตงานเพื่อคุมเอกลักษณ์
             ),
           ),
         );
       }
+
       if (it.dropoffLatLng != null) {
         markers.add(
           Marker(
             point: it.dropoffLatLng!,
-            width: 40,
-            height: 40,
-            child: const Icon(Icons.home_filled, color: Colors.green, size: 28),
+            width: 44,
+            height: 44,
+            child: _NumberedMarker(
+              icon: Icons.home_filled,
+              iconColor: Colors.green,
+              number: i + 1,
+              badgeColor: color,
+            ),
           ),
         );
       }
+
       if (rp != null) {
         final heading = _riderHeadingDeg[it.riderId!] ?? 0.0;
         final ahead = _aheadPoint(rp, heading, 25.0);
@@ -966,6 +1018,53 @@ class _ErrorTile extends StatelessWidget {
           TextButton(onPressed: onRetry, child: const Text('ลองอีกครั้ง')),
         ],
       ),
+    );
+  }
+}
+
+class _NumberedMarker extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final int number;
+  final Color badgeColor;
+
+  const _NumberedMarker({
+    required this.icon,
+    required this.iconColor,
+    required this.number,
+    required this.badgeColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        Icon(icon, color: iconColor, size: 28),
+        Positioned(
+          right: -2,
+          top: -2,
+          child: Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              color: badgeColor,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              '$number',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

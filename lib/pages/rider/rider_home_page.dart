@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -39,11 +40,20 @@ class _RiderHomePageState extends State<RiderHomePage> {
 
   final RxInt _acceptingId = 0.obs;
 
+  Timer? _autoTimer;
+  static const _autoRefreshSec = 10;
+
   @override
   void initState() {
     super.initState();
     _loadConfig();
     _loadSessionInfo();
+  }
+
+  @override
+  void dispose() {
+    _autoTimer?.cancel();
+    super.dispose();
   }
 
   void _loadSessionInfo() {
@@ -76,6 +86,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
         _loadingCfg = false;
       });
       _refreshAll();
+      _startAutoRefresh();
     } catch (e) {
       setState(() {
         _cfgError = '$e';
@@ -245,6 +256,117 @@ class _RiderHomePageState extends State<RiderHomePage> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _fetchShipmentsSoft() async {
+    if (_baseUrl == null || _baseUrl!.isEmpty) return;
+
+    try {
+      final uri = Uri.parse('$_baseUrl/shipments').replace(
+        queryParameters: {
+          'status': 'WAITING_FOR_RIDER',
+          'available': '1',
+          'pageSize': '50',
+        },
+      );
+
+      final resp = await http
+          .get(uri, headers: await authHeaders())
+          .timeout(const Duration(seconds: 15));
+      handleAuthErrorIfAny(resp);
+
+      final body = jsonDecode(utf8.decode(resp.bodyBytes));
+
+      if (resp.statusCode >= 200 && resp.statusCode < 300) {
+        final List list = (body is Map && body['data'] is List)
+            ? (body['data'] as List)
+            : (body is List ? body : const []);
+
+        final onlyWaiting = list.where((x) {
+          final s = (x is Map && x['status'] is String)
+              ? (x['status'] as String).toUpperCase()
+              : '';
+          return s == 'WAITING_FOR_RIDER';
+        }).toList();
+
+        final mapped = onlyWaiting.map<Map<String, dynamic>>((x) {
+          final pickup =
+              (x['pickup'] ?? x['pickup_address'] ?? {}) as Map? ?? {};
+          final dropoff =
+              (x['dropoff'] ?? x['dropoff_address'] ?? {}) as Map? ?? {};
+
+          final cover =
+              (x['cover_file_path'] ?? x['file_path'] ?? '') as String;
+          final imagePath = cover.trim().isEmpty
+              ? null
+              : (cover.startsWith('http')
+                    ? cover
+                    : _joinBase(_baseUrl!, cover));
+
+          final rawSenderAvatar = (x['sender']?['avatar_path'] ?? '') as String;
+          final senderAvatar = rawSenderAvatar.trim().isEmpty
+              ? null
+              : (rawSenderAvatar.startsWith('http')
+                    ? rawSenderAvatar
+                    : _joinBase(_baseUrl!, rawSenderAvatar));
+
+          final rawReceiverAvatar =
+              (x['receiver']?['avatar_path'] ?? '') as String;
+          final receiverAvatar = rawReceiverAvatar.trim().isEmpty
+              ? null
+              : (rawReceiverAvatar.startsWith('http')
+                    ? rawReceiverAvatar
+                    : _joinBase(_baseUrl!, rawReceiverAvatar));
+
+          return {
+            'id': x['id'],
+            'title': (x['title'] ?? 'Order').toString(),
+            'status': (x['status'] ?? '').toString(),
+            'from': (pickup['label'] ?? pickup['address_text'] ?? '—')
+                .toString(),
+            'to': (dropoff['label'] ?? dropoff['address_text'] ?? '—')
+                .toString(),
+            'distance': "-",
+            'image': imagePath,
+            'sender_avatar': senderAvatar,
+            'receiver_avatar': receiverAvatar,
+            '_raw': x,
+            '_pickup': pickup,
+            '_dropoff': dropoff,
+          };
+        }).toList();
+
+        if (!mounted) return;
+        setState(() => _items = mapped);
+      }
+    } catch (_) {}
+  }
+
+  void _startAutoRefresh() {
+    _autoTimer?.cancel();
+    if (_baseUrl == null || _baseUrl!.isEmpty) return;
+
+    _autoTimer = Timer.periodic(Duration(seconds: _autoRefreshSec), (_) async {
+      final wasEmpty = _items.isEmpty;
+      await _fetchShipmentsSoft();
+      if (!mounted) return;
+
+      if (wasEmpty && _items.isNotEmpty) {
+        if (mounted && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'มีงานใหม่พร้อมรับแล้ว!',
+                style: GoogleFonts.notoSansThai(fontWeight: FontWeight.w700),
+              ),
+              backgroundColor: const Color(0xFFFF7A00),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    });
   }
 
   Future<void> _acceptShipment(int shipmentId) async {
@@ -464,14 +586,12 @@ class _RiderHomePageState extends State<RiderHomePage> {
                                       dropoff['address_text'] ??
                                       'จุดส่งของ')
                                   .toString(),
-
                           senderName: senderName.isEmpty ? null : senderName,
                           senderPhone: senderPhone.isEmpty ? null : senderPhone,
                           senderAddress: senderAddress.isEmpty
                               ? null
                               : senderAddress,
                           senderAvatar: senderAvatar,
-
                           receiverName: receiverName.isEmpty
                               ? null
                               : receiverName,
@@ -485,7 +605,6 @@ class _RiderHomePageState extends State<RiderHomePage> {
                         ),
                       );
                     },
-
                     icon: const Icon(Icons.map_rounded),
                     label: Text(
                       'ดูแผนที่',
