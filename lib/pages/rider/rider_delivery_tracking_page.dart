@@ -333,7 +333,7 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
   final double _speedSmoothAlpha = 0.35;
 
   DateTime? _lastRouteAt;
-  final Duration _routeMinGap = const Duration(seconds: 6);
+  final Duration _routeMinGap = const Duration(seconds: 1);
 
   bool _followMe = true;
 
@@ -1053,6 +1053,29 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                                   'https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=0b03b55da9a64adab5790c1c9515b15a',
                               userAgentPackageName: 'net.gonggang.osm_demo',
                             ),
+
+                            PolylineLayer(
+                              polylines: _routeLine.isEmpty
+                                  ? const <Polyline>[]
+                                  : <Polyline>[
+                                      Polyline(
+                                        points: _routeLine,
+                                        strokeWidth: 7,
+                                        color: _pickedUp
+                                            ? Colors.greenAccent.withValues(
+                                                alpha: 0.8,
+                                              )
+                                            : Colors.blueAccent.withValues(
+                                                alpha: 0.8,
+                                              ),
+                                        borderStrokeWidth: 2.5,
+                                        borderColor: Colors.black.withValues(
+                                          alpha: 0.2,
+                                        ),
+                                      ),
+                                    ],
+                            ),
+
                             CircleLayer(
                               circles: [
                                 CircleMarker(
@@ -1073,31 +1096,9 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                                 ),
                               ],
                             ),
+
                             MarkerLayer(
                               markers: [
-                                Marker(
-                                  point: _meVN.value ?? _pickup,
-                                  width: 52,
-                                  height: 52,
-                                  child: ValueListenableBuilder<LatLng?>(
-                                    valueListenable: _meVN,
-                                    builder: (_, me, _) {
-                                      final angle =
-                                          ((_lastHeadingDegFromSensor ?? 0) %
-                                              360) *
-                                          pi /
-                                          180.0;
-                                      return Transform.rotate(
-                                        angle: angle,
-                                        child: const Icon(
-                                          Icons.navigation_rounded,
-                                          color: Colors.red,
-                                          size: 38,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
                                 Marker(
                                   point: _pickup,
                                   width: 48,
@@ -1120,26 +1121,33 @@ class _RiderDeliveryTrackingPageState extends State<RiderDeliveryTrackingPage> {
                                 ),
                               ],
                             ),
-                            PolylineLayer(
-                              polylines: _routeLine.isEmpty
-                                  ? const <Polyline>[]
-                                  : <Polyline>[
-                                      Polyline(
-                                        points: _routeLine,
-                                        strokeWidth: 7,
-                                        color: _pickedUp
-                                            ? Colors.greenAccent.withValues(
-                                                alpha: 0.8,
-                                              )
-                                            : Colors.blueAccent.withValues(
-                                                alpha: 0.8,
-                                              ),
-                                        borderStrokeWidth: 2.5,
-                                        borderColor: Colors.black.withValues(
-                                          alpha: 0.2,
+
+                            MarkerLayer(
+                              markers: [
+                                Marker(
+                                  point: _meVN.value ?? _pickup,
+                                  width: 52,
+                                  height: 52,
+                                  child: ValueListenableBuilder<LatLng?>(
+                                    valueListenable: _meVN,
+                                    builder: (_, me, __) {
+                                      final angle =
+                                          ((_lastHeadingDegFromSensor ?? 0) %
+                                              360) *
+                                          pi /
+                                          180.0;
+                                      return Transform.rotate(
+                                        angle: angle,
+                                        child: const Icon(
+                                          Icons.navigation_rounded,
+                                          color: Colors.red,
+                                          size: 38,
                                         ),
-                                      ),
-                                    ],
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
