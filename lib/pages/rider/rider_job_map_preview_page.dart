@@ -62,6 +62,9 @@ class _RiderJobMapPreviewPageState extends State<RiderJobMapPreviewPage> {
 
   final Distance _dist = const Distance();
 
+  bool _osrmLegCurrentToPickup = true;
+  bool _osrmLegPickupToDrop = true;
+
   double _polylineMeters(List<LatLng> pts) {
     if (pts.length < 2) return 0;
     double sum = 0;
@@ -69,28 +72,6 @@ class _RiderJobMapPreviewPageState extends State<RiderJobMapPreviewPage> {
       sum += _dist(pts[i], pts[i + 1]);
     }
     return sum;
-  }
-
-  double _straightMeters(LatLng a, LatLng b) => _dist(a, b);
-
-  double? get _mCurrentToPickup {
-    if (_current == null) return null;
-    if (_legCurrentToPickup.length >= 2) {
-      return _polylineMeters(_legCurrentToPickup);
-    }
-    return _straightMeters(_current!, widget.pickup);
-  }
-
-  double get _mPickupToDrop {
-    if (_legPickupToDrop.length >= 2) return _polylineMeters(_legPickupToDrop);
-    return _straightMeters(widget.pickup, widget.dropoff);
-  }
-
-  double? get _mTotal {
-    final a = _mCurrentToPickup;
-    final b = _mPickupToDrop;
-    if (a == null) return b;
-    return a + b;
   }
 
   String _fmtMeters(double m) {
@@ -112,22 +93,24 @@ class _RiderJobMapPreviewPageState extends State<RiderJobMapPreviewPage> {
     try {
       final cur = await _getCurrentPositionOnce();
       _current = cur;
+
       _legPickupToDrop = await _fetchRouteOSRM(widget.pickup, widget.dropoff);
       if (_legPickupToDrop.isEmpty) {
-        _legPickupToDrop = <LatLng>[widget.pickup, widget.dropoff];
+        _osrmLegPickupToDrop = false;
       }
 
       if (_current != null) {
         _legCurrentToPickup = await _fetchRouteOSRM(_current!, widget.pickup);
         if (_legCurrentToPickup.isEmpty) {
-          _legCurrentToPickup = <LatLng>[_current!, widget.pickup];
+          _osrmLegCurrentToPickup = false;
         }
       }
 
-      setState(() {
-        _loading = false;
-      });
+      if (!_osrmLegPickupToDrop || !_osrmLegCurrentToPickup) {
+        _error = 'บริการเส้นทาง (OSRM) ไม่สามารถใช้งานได้ชั่วคราว';
+      }
 
+      setState(() => _loading = false);
       _fitAll();
     } catch (e) {
       setState(() {
@@ -165,10 +148,12 @@ class _RiderJobMapPreviewPageState extends State<RiderJobMapPreviewPage> {
       if (resp.statusCode != 200) return const [];
 
       final body = jsonDecode(utf8.decode(resp.bodyBytes));
-      if (body is! Map || body['routes'] is! List || body['routes'].isEmpty) {
+      if (body is! Map ||
+          body['routes'] is! List ||
+          (body['routes'] as List).isEmpty) {
         return const [];
       }
-      final geometry = body['routes'][0]?['geometry'];
+      final geometry = (body['routes'] as List).first?['geometry'];
       if (geometry is! Map) return const [];
       final coords = geometry['coordinates'];
       if (coords is! List) return const [];
@@ -220,6 +205,18 @@ class _RiderJobMapPreviewPageState extends State<RiderJobMapPreviewPage> {
           color: Colors.greenAccent.withValues(alpha: 0.5),
         ),
     ];
+
+    final double? mCurrentToPickup =
+        (_osrmLegCurrentToPickup && _legCurrentToPickup.isNotEmpty)
+        ? _polylineMeters(_legCurrentToPickup)
+        : null;
+    final double? mPickupToDrop =
+        (_osrmLegPickupToDrop && _legPickupToDrop.isNotEmpty)
+        ? _polylineMeters(_legPickupToDrop)
+        : null;
+    final double? mTotal = (mCurrentToPickup != null && mPickupToDrop != null)
+        ? (mCurrentToPickup + mPickupToDrop)
+        : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -314,6 +311,28 @@ class _RiderJobMapPreviewPageState extends State<RiderJobMapPreviewPage> {
             ],
           ),
 
+          if (_error != null && !_loading)
+            Positioned(
+              left: 12,
+              right: 12,
+              top: 12,
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.red.withOpacity(0.25)),
+                ),
+                child: Text(
+                  'เส้นทางไม่พร้อม: $_error',
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+
           Positioned(
             left: 16,
             right: 16,
@@ -327,7 +346,6 @@ class _RiderJobMapPreviewPageState extends State<RiderJobMapPreviewPage> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ไอคอนนำหน้าพร้อมพื้นหลังโทนกลมกลืน เพื่อบอกบริบทโดยไม่ดึงสายตาเกินไป
                       Container(
                         width: 36,
                         height: 36,
@@ -354,12 +372,10 @@ class _RiderJobMapPreviewPageState extends State<RiderJobMapPreviewPage> {
                       ),
                       const SizedBox(width: 12),
 
-                      // ส่วนกลาง: เส้นทาง 2 บรรทัด พร้อมจุดสีและเส้นเชื่อม
                       Expanded(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // บรรทัด "จาก"
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -378,7 +394,6 @@ class _RiderJobMapPreviewPageState extends State<RiderJobMapPreviewPage> {
                                 ),
                               ],
                             ),
-                            // เส้นเชื่อมเล็ก ๆ ระหว่างจุด (ช่วยตาไหล)
                             Padding(
                               padding: const EdgeInsets.only(
                                 left: 4,
@@ -402,7 +417,6 @@ class _RiderJobMapPreviewPageState extends State<RiderJobMapPreviewPage> {
                                 ),
                               ),
                             ),
-                            // บรรทัด "ถึง"
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -439,27 +453,29 @@ class _RiderJobMapPreviewPageState extends State<RiderJobMapPreviewPage> {
                   ),
 
                   const SizedBox(height: 6),
+
                   Center(
                     child: Wrap(
                       alignment: WrapAlignment.center,
                       spacing: 8,
                       runSpacing: 6,
                       children: [
-                        if (_mCurrentToPickup != null)
+                        if (mCurrentToPickup != null)
                           _DistChip(
                             label: 'คุณ→รับ',
-                            value: _fmtMeters(_mCurrentToPickup!),
+                            value: _fmtMeters(mCurrentToPickup),
                             icon: Icons.my_location,
                           ),
-                        _DistChip(
-                          label: 'รับ→ส่ง',
-                          value: _fmtMeters(_mPickupToDrop),
-                          icon: Icons.route_rounded,
-                        ),
-                        if (_mTotal != null)
+                        if (mPickupToDrop != null)
+                          _DistChip(
+                            label: 'รับ→ส่ง',
+                            value: _fmtMeters(mPickupToDrop),
+                            icon: Icons.route_rounded,
+                          ),
+                        if (mTotal != null)
                           _DistChip(
                             label: 'รวม',
-                            value: _fmtMeters(_mTotal!),
+                            value: _fmtMeters(mTotal),
                             icon: Icons.stacked_line_chart_rounded,
                             emphasized: true,
                           ),
@@ -509,22 +525,6 @@ class _RiderJobMapPreviewPageState extends State<RiderJobMapPreviewPage> {
               child: ColoredBox(
                 color: Colors.white70,
                 child: Center(child: CircularProgressIndicator()),
-              ),
-            ),
-          if (_error != null && !_loading)
-            Positioned(
-              left: 12,
-              right: 12,
-              bottom: 16,
-              child: Card(
-                color: const Color(0xFFFFE9E9),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Text(
-                    'เกิดข้อผิดพลาด: $_error',
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                ),
               ),
             ),
         ],
@@ -645,7 +645,7 @@ class _AvatarOrIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasUrl = url != null && url!.trim().isNotEmpty;
-    final double size = 40;
+    const double size = 40;
 
     return Container(
       width: size,
@@ -692,7 +692,7 @@ class _DistChip extends StatelessWidget {
     final bg = emphasized
         ? Colors.black87
         : Colors.black.withValues(alpha: 0.75);
-    final fg = Colors.white;
+    const fg = Colors.white;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -711,6 +711,13 @@ class _DistChip extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: fg),
           const SizedBox(width: 6),
+          const Text(
+            ' ',
+            style: TextStyle(
+              color: Colors.white70,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           Text(
             '$label: ',
             style: const TextStyle(
@@ -720,7 +727,7 @@ class _DistChip extends StatelessWidget {
           ),
           Text(
             value,
-            style: TextStyle(color: fg, fontWeight: FontWeight.w900),
+            style: const TextStyle(color: fg, fontWeight: FontWeight.w900),
           ),
         ],
       ),
@@ -733,7 +740,6 @@ class _Dot extends StatelessWidget {
   const _Dot({required this.color});
   @override
   Widget build(BuildContext context) {
-    // ใช้ขนาด 10px เพื่อให้พอดีสายตา และมีขอบจาง ๆ ให้โดดจากพื้นหลัง
     return Container(
       width: 10,
       height: 10,

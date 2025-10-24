@@ -46,6 +46,8 @@ class _SenderMapPageState extends State<SenderMapPage> {
 
   bool _bootstrappedStatuses = false;
 
+  final Map<int, bool> _osrmOk = {};
+
   static const _palette = <Color>[
     Color(0xFF2C7BE5),
     Color(0xFF3BB54A),
@@ -105,7 +107,7 @@ class _SenderMapPageState extends State<SenderMapPage> {
     if (routePts != null && routePts.length >= 2) {
       return _polylineMeters(routePts);
     }
-    return _dist(rp, target);
+    return null;
   }
 
   String _fmtMeters(double m) {
@@ -189,7 +191,7 @@ class _SenderMapPageState extends State<SenderMapPage> {
       parsed.add(
         _Incoming(
           shipmentId: id,
-          title: (r['title'] ?? 'Incoming Delivery').toString(),
+          title: (r['title'] ?? 'Outgoing Delivery').toString(),
           status: status,
           senderAvatar: sender?['avatar_path'] as String?,
           riderName: riderName,
@@ -214,6 +216,10 @@ class _SenderMapPageState extends State<SenderMapPage> {
         .where((k) => !validIds.contains(k))
         .toList()
         .forEach(_routes.remove);
+    _osrmOk.keys
+        .where((k) => !validIds.contains(k))
+        .toList()
+        .forEach(_osrmOk.remove);
 
     _fitToAll();
     _bootstrappedStatuses = true;
@@ -260,7 +266,7 @@ class _SenderMapPageState extends State<SenderMapPage> {
       fresh.add(
         _Incoming(
           shipmentId: id,
-          title: (r['title'] ?? 'Incoming Delivery').toString(),
+          title: (r['title'] ?? 'Outgoing Delivery').toString(),
           status: status,
           senderAvatar: sender?['avatar_path'] as String?,
           riderName: riderName,
@@ -289,6 +295,10 @@ class _SenderMapPageState extends State<SenderMapPage> {
           .where((k) => !newIds.contains(k))
           .toList()
           .forEach(_routes.remove);
+      _osrmOk.keys
+          .where((k) => !newIds.contains(k))
+          .toList()
+          .forEach(_osrmOk.remove);
 
       if (_focusedIndex != null) {
         if (oldById.isEmpty || _focusedIndex! >= oldById.length) {
@@ -377,6 +387,7 @@ class _SenderMapPageState extends State<SenderMapPage> {
         _routes.remove(id);
         _lastRoutedFrom.remove(id);
         _lastRouteAt.remove(id);
+        _osrmOk.remove(id);
       }
       if (_focusedIndex != null && _focusedIndex! >= _items.length) {
         _focusedIndex = null;
@@ -459,6 +470,11 @@ class _SenderMapPageState extends State<SenderMapPage> {
     if (pts != null && pts.length >= 2) {
       _routes[sid] = pts;
       _lastRoutedFrom[sid] = rp;
+      _lastRouteAt[sid] = n;
+      _osrmOk[sid] = true;
+    } else {
+      _routes.remove(sid);
+      _osrmOk[sid] = false;
       _lastRouteAt[sid] = n;
     }
   }
@@ -765,22 +781,6 @@ class _SenderMapPageState extends State<SenderMapPage> {
             color: lineColor.withValues(alpha: 0.95),
           ),
         );
-      } else {
-        final pts = <LatLng>[];
-        if (rp != null) pts.add(rp);
-        final target = it.status == 'RIDER_ACCEPTED'
-            ? it.pickupLatLng
-            : it.dropoffLatLng;
-        if (target != null) pts.add(target);
-        if (pts.length >= 2) {
-          polylines.add(
-            Polyline(
-              points: pts,
-              strokeWidth: 3.5,
-              color: lineColor.withValues(alpha: 0.6),
-            ),
-          );
-        }
       }
 
       if (it.pickupLatLng != null) {
@@ -793,7 +793,7 @@ class _SenderMapPageState extends State<SenderMapPage> {
               icon: Icons.store_mall_directory_rounded,
               iconColor: Colors.blue,
               number: i + 1,
-              badgeColor: color, // ใช้สีเดียวกับพาเลตงานเพื่อคุมเอกลักษณ์
+              badgeColor: color,
             ),
           ),
         );
@@ -826,6 +826,8 @@ class _SenderMapPageState extends State<SenderMapPage> {
           ),
         );
 
+        final angleRad = (heading % 360) * (math.pi / 180.0);
+
         markers.add(
           Marker(
             point: rp,
@@ -835,12 +837,33 @@ class _SenderMapPageState extends State<SenderMapPage> {
               alignment: Alignment.center,
               children: [
                 Transform.rotate(
-                  angle: (heading % 360) * (math.pi / 180.0),
-                  child: _NumberedMarker(
-                    icon: Icons.navigation_rounded,
-                    iconColor: Colors.red,
-                    number: i + 1,
-                    badgeColor: color,
+                  angle: angleRad,
+                  child: const Icon(
+                    Icons.navigation_rounded,
+                    color: Colors.red,
+                    size: 26,
+                  ),
+                ),
+                Positioned(
+                  right: -2,
+                  top: -2,
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${i + 1}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -849,6 +872,12 @@ class _SenderMapPageState extends State<SenderMapPage> {
         );
       }
     }
+
+    final bool anyOsrmDown = entries.any((ent) {
+      final it = ent.$2;
+      final ok = _osrmOk[it.shipmentId];
+      return ok == false;
+    });
 
     return Container(
       height: 300,
@@ -864,32 +893,61 @@ class _SenderMapPageState extends State<SenderMapPage> {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: FlutterMap(
-        mapController: _map,
-        options: MapOptions(
-          initialCenter: const LatLng(13.7563, 100.5018),
-          initialZoom: 12.5,
-          interactionOptions: InteractionOptions(
-            flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-          ),
-          onMapReady: () {
-            _mapReady = true;
-            if (_focusedIndex != null) {
-              _fitShipment(_focusedIndex!);
-            } else {
-              _fitToAll();
-            }
-          },
-        ),
+      child: Stack(
         children: [
-          TileLayer(
-            urlTemplate:
-                'https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=0b03b55da9a64adab5790c1c9515b15a',
-            userAgentPackageName: 'net.gonggang.osm_demo',
+          FlutterMap(
+            mapController: _map,
+            options: MapOptions(
+              initialCenter: const LatLng(13.7563, 100.5018),
+              initialZoom: 12.5,
+              interactionOptions: InteractionOptions(
+                flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+              ),
+              onMapReady: () {
+                _mapReady = true;
+                if (_focusedIndex != null) {
+                  _fitShipment(_focusedIndex!);
+                } else {
+                  _fitToAll();
+                }
+              },
+            ),
+            children: [
+              TileLayer(
+                urlTemplate:
+                    'https://tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=0b03b55da9a64adab5790c1c9515b15a',
+                userAgentPackageName: 'net.gonggang.osm_demo',
+              ),
+              if (circles.isNotEmpty) CircleLayer(circles: circles),
+              if (polylines.isNotEmpty) PolylineLayer(polylines: polylines),
+              if (markers.isNotEmpty) MarkerLayer(markers: markers),
+            ],
           ),
-          if (circles.isNotEmpty) CircleLayer(circles: circles),
-          if (polylines.isNotEmpty) PolylineLayer(polylines: polylines),
-          if (markers.isNotEmpty) MarkerLayer(markers: markers),
+
+          if (anyOsrmDown)
+            Positioned(
+              left: 10,
+              right: 10,
+              top: 10,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.red.withOpacity(0.25)),
+                ),
+                child: const Text(
+                  'เส้นทางไม่พร้อม: บริการ OSRM ไม่สามารถใช้งานได้ชั่วคราว',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -1016,8 +1074,6 @@ class _NumberedMarker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ใช้ Stack เพื่อ "คงสัญลักษณ์หลัก" และ "ซ้อนเลขงาน" ที่มุมขวาบน
-    // เหตุผล: รูปแบบเดียวกับหมุดไรเดอร์ ช่วยสร้าง mapping ทางสายตาแบบสม่ำเสมอ
     return Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.center,
